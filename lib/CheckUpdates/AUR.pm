@@ -155,7 +155,7 @@ sub vercmp() {
         while(<$pipe>) {
             chomp;
 
-            ($_ =~ /^(-1|0|1)$/)
+            /^(-1|0|1)$/
                 and return scalar $_
                 or  last;
         };
@@ -164,8 +164,6 @@ sub vercmp() {
     };
 
     $!=1; die(__PACKAGE__ . '->varcmp(): one or more versions are empty');
-
-    exit 1;
 }
 
 =head2 multiinfo
@@ -173,6 +171,7 @@ sub vercmp() {
 Fast method to get info about multiple packages.
 
 =cut
+
 sub multiinfo {
     my $self     = shift;
     my $lwp      = WWW::AUR::UserAgent->new();
