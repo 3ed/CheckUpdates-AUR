@@ -1,9 +1,12 @@
+bin/checkupdates-aur
 Build.PL
 Changes
 lib/CheckUpdates/AUR.pm
+LICENSE
 MANIFEST			This list of files
 README
 t/00-load.t
+t/cmd.t
 t/manifest.t
 t/pod-coverage.t
 t/pod.t
