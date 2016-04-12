@@ -33,14 +33,16 @@ Example of code:
     use CheckUpdates::AUR;
 
     my $foo = CheckUpdates::AUR->new();
-    
+
+    # Print available updates:
+
     $foo->print();
     # or
-    printf("%s %s -> %s\n", @{$foo->get()});
+    printf("%s %s -> %s\n", @{$_}[0..2]) foreach (@{$foo->get()});
 
 =head1 SUBROUTINES/METHODS
 
-=head2 new
+=head2 new()
 
 New...
 
@@ -51,7 +53,7 @@ sub new {
     return bless({}, shift);
 }
 
-=head2 get
+=head2 get()
 
 Get array with checkupdates: [name, local_ver, aur_ver]
 
@@ -79,14 +81,12 @@ Print checkupdates into stdout in chekupdates format.
 sub print {
     my $self = shift;
 
-    foreach (@{$self->get()}) {
-        printf("%s %s -> %s\n", $_->[0], $_->[1], $_->[2]);
-    }
+    printf("%s %s -> %s\n", @{$_}[0..2]) foreach (@{$self->get()});
 
     return 1;
 }
 
-=head2 refresh
+=head2 refresh()
 
 Create/retrive/parse/refresh data about packages.
 
@@ -139,7 +139,7 @@ sub refresh {
 }
 
 
-=head2 vercmp
+=head2 vercmp($$)
 
 Compare two versions in pacman way. Frontend for vercmp command.
 
@@ -166,7 +166,7 @@ sub vercmp() {
     $!=1; die(__PACKAGE__ . '->varcmp(): one or more versions are empty');
 }
 
-=head2 multiinfo
+=head2 multiinfo(@)
 
 Fast method to get info about multiple packages.
 
