@@ -59,7 +59,7 @@ Get array with checkupdates: [name, local_ver, aur_ver]
 
 =cut
 
-sub get() {
+sub get {
     my $self = shift;
 
     ### get() run refresh() if updates db is not created
@@ -145,7 +145,7 @@ Compare two versions in pacman way. Frontend for vercmp command.
 
 =cut
 
-sub vercmp() {
+sub vercmp {
     my ($self, $a, $b) = @_;
 
     if (defined $a and defined $b) {
