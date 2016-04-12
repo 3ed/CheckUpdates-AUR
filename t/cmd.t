@@ -1,10 +1,15 @@
-#!/usr/bin/perl -T
+#!perl -T
 use v5.16;
 use strict;
 use warnings;
 use Test::More tests => 2;
 
-use IPC::Cmd qw(can_run);
+subtest "pacman is installed" => sub {
+	plan tests => 3;
+	ok(-x '/usr/bin/pacman',       'can execute: /usr/bin/pacman');
+	ok(-r '/etc/pacman.conf',      'can read: /etc/pacman.conf');
+	ok(-d '/var/lib/pacman/local', 'local repo exist: /var/lib/pacman/local');
+};
 
-ok(can_run("pacman"), 'pacman is installed');
-ok(can_run("vercmp"), 'vercmp is installed');
+
+ok(-x '/usr/bin/vercmp', 'vercmp is installed');
