@@ -1,18 +1,26 @@
-CheckUpdates-AUR
+# CheckUpdates-AUR
 
-The README is used to introduce the module and provide instructions on
-how to install the module, any machine dependencies it may have (for
-example C compilers and installed libraries) and any other information
-that should be provided before the module is installed.
+ALPM (Arch Linux Package Manager) pacman include checkupdates which show you all packages that is not up2date in format:
 
-A README file is required for CPAN modules since CPAN extracts the README
-file from a module distribution so that people browsing the archive
-can use it to get an idea of the module's uses. It is usually a good idea
-to provide version information here so that people can decide whether
-fixes for the module are worth downloading.
+  name old_version -> new_version
 
+This program/module try reproduce it for aur.
 
-INSTALLATION
+# EXAMPLES OF USAGE:
+## Gnome-shell
+Extension (Arch Linux Updates Indicator)[https://extensions.gnome.org/extension/1010/archlinux-updates-indicator/]
+
+Command for checking updates:
+
+	/usr/bin/sh -c "/usr/bin/checkupdates; /usr/bin/checkupdates-aur"
+
+Command for upgrades:
+
+	gnome-terminal -e 'sh -c  "yaourt -Syu --aur; echo Zakończono - przyciśnij enter aby wyjść.; read" '
+
+## Any other tools as frontend.
+
+# INSTALLATION
 
 To install this module, run the following commands:
 
@@ -21,29 +29,10 @@ To install this module, run the following commands:
 	./Build test
 	./Build install
 
-SUPPORT AND DOCUMENTATION
+# SUPPORT AND DOCUMENTATION
+https://github.com/3ed/CheckUpdates-AUR/
 
-After installing, you can find documentation for this module with the
-perldoc command.
-
-    perldoc CheckUpdates::AUR
-
-You can also look for information at:
-
-    RT, CPAN's request tracker (report bugs here)
-        http://rt.cpan.org/NoAuth/Bugs.html?Dist=CheckUpdates-AUR
-
-    AnnoCPAN, Annotated CPAN documentation
-        http://annocpan.org/dist/CheckUpdates-AUR
-
-    CPAN Ratings
-        http://cpanratings.perl.org/d/CheckUpdates-AUR
-
-    Search CPAN
-        http://search.cpan.org/dist/CheckUpdates-AUR/
-
-
-LICENSE AND COPYRIGHT
+# LICENSE AND COPYRIGHT
 
 Copyright (C) 2016 3ED
 
