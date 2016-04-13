@@ -29,7 +29,7 @@ checkupdates-aur|awk '{print $1}'
 ...
 use CheckUpdates::AUR;
 my $cua = CheckUpdates::AUR->new();
-do_updates($cua->get());
+do_updates(@{$cua->get()});
 ...
 ```
 # INSTALLATION
