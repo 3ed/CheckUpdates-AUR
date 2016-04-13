@@ -99,7 +99,7 @@ sub refresh {
     $self->{'updates'} = [];
 
     ### refresh() reading 'pacman -Qm' output
-    
+
     my $pipe = IO::Pipe->new();
     $pipe->reader(qw[pacman -Qm]);
 
@@ -108,8 +108,8 @@ sub refresh {
     	$local->{$name} = $version;
     };
 
-    if ($#{[keys %$local]} >= 0) {
-        ## found 0 packages, nothing to do...
+    if ($#{[keys %$local]} < 0) {
+        ### found 0 packages, nothing to do...
         return 1;
     }
 
