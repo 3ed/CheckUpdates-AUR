@@ -17,11 +17,11 @@ CheckUpdates::AUR - checkupdates for aur
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 
 =head1 SYNOPSIS
@@ -104,8 +104,8 @@ sub refresh {
     $pipe->reader(qw[pacman -Qm]);
 
     while(<$pipe>) {
-    	my ($name, $version) = split(" ");
-    	$local->{$name} = $version;
+        my ($name, $version) = split(" ");
+        $local->{$name} = $version;
     };
 
     if ($#{[keys %$local]} < 0) {
@@ -174,11 +174,22 @@ Fast method to get info about multiple packages.
 
 sub multiinfo {
     my $self     = shift;
-    my $lwp      = WWW::AUR::UserAgent->new();
+    my $lwp      = WWW::AUR::UserAgent->new(
+        'timeout' => 10,
+        'agent'   => sprintf(
+            'WWW::AUR/v%s (CheckUpdates::AUR/v%s)',
+            $WWW::AUR::VERSION,
+            $VERSION,
+        ),
+        'protocols_allowed' => ['https'],
+    );
+
     my $response = $lwp->get(rpc_uri('multiinfo', @_));
 
     $response->is_success
         and return decode_json($response->decoded_content);
+
+    ### LWP decoded: $response->decoded_content
 
     $!=1; die(__PACKAGE__ . '->multiinfo(): LWP status error: ' . $response->status_line)
 }
