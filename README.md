@@ -1,34 +1,46 @@
 # CheckUpdates-AUR
 
 ALPM (Arch Linux Package Manager) pacman include checkupdates which show you all packages that is not up2date in format:
-
-  name old_version -> new_version
-
+```
+name old_version -> new_version
+```
 This program/module try reproduce it for aur.
 
 # EXAMPLES OF USAGE:
 ## Gnome-shell
-Extension (Arch Linux Updates Indicator)[https://extensions.gnome.org/extension/1010/archlinux-updates-indicator/]
+Extension [Arch Linux Updates Indicator](https://extensions.gnome.org/extension/1010/archlinux-updates-indicator/)
 
 Command for checking updates:
-
-	/usr/bin/sh -c "/usr/bin/checkupdates; /usr/bin/checkupdates-aur"
-
+```
+/usr/bin/sh -c "/usr/bin/checkupdates; /usr/bin/checkupdates-aur"
+```
 Command for upgrades:
-
-	gnome-terminal -e 'sh -c  "yaourt -Syu --aur; echo Zakończono - przyciśnij enter aby wyjść.; read" '
+```
+gnome-terminal -e 'sh -c  "yaourt -Syu --aur; echo; echo All done... now you can press enter or close this window.; read" '
+```
 
 ## Any other tools as frontend.
-
+### Example1, list with names only:
+```
+checkupdates-aur|awk '{print $1}'
+```
+### Example2, fast list for your perl program:
+```
+...
+use CheckUpdates::AUR;
+my $cua = CheckUpdates::AUR->new();
+do_updates(@{$cua->get()});
+...
+```
 # INSTALLATION
 
 To install this module, run the following commands:
-
-	perl Build.PL
-	./Build
-	./Build test
-	./Build install
-
+```
+perl Build.PL
+./Build
+./Build test
+./Build install
+```
 # SUPPORT AND DOCUMENTATION
 https://github.com/3ed/CheckUpdates-AUR/
 
@@ -40,7 +52,7 @@ This program is free software; you can redistribute it and/or modify it
 under the terms of the the Artistic License (2.0). You may obtain a
 copy of the full license at:
 
-L<http://www.perlfoundation.org/artistic_license_2_0>
+http://www.perlfoundation.org/artistic_license_2_0
 
 Any use, modification, and distribution of the Standard or Modified
 Versions is governed by this Artistic License. By using, modifying or
