@@ -94,7 +94,7 @@ Create/retrive/parse/refresh data about packages.
 
 sub refresh {
     my $self = shift;
-    my ($local, $aur);
+    my $local;
 
     $self->{'updates'} = [];
 
@@ -120,10 +120,8 @@ sub refresh {
     ### refresh() comparing versions
 
     foreach (@multiinfo_results) {
-        $aur->{$_->{'Name'}} = $_->{'Version'};
-
         my $name = $_->{'Name'};
-        my $vloc = $local->{$name};
+        my $vloc = $local->{$name}    or next;
         my $vaur = $_->{'Version'};
 
         ($vaur ne $vloc)
