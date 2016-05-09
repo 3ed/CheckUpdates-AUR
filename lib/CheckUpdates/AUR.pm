@@ -110,7 +110,7 @@ sub refresh {
 
     if ($#{[keys %$local]} < 0) {
         ### found 0 packages, nothing to do...
-        return 1;
+        return $self;
     }
 
     ### refresh() getting multiinfo()
@@ -119,12 +119,14 @@ sub refresh {
 
     ### refresh() comparing versions
 
+    my %seen;
     foreach (@multiinfo_results) {
         my $name = $_->{'Name'};
         my $vloc = $local->{$name}    or next;
         my $vaur = $_->{'Version'};
 
-        ($vaur ne $vloc)
+        !$seen{$name}++
+            and ($vaur ne $vloc)
             and ($self->vercmp($vloc, $vaur) eq "-1")
             and push @{$self->{'updates'}}, [$name, $vloc, $vaur];
     }
@@ -133,7 +135,7 @@ sub refresh {
     ###      Found on AUR: $#multiinfo_results + 1
     ###           Updates: $#{$self->{'updates'}} + 1
 
-    return 1
+    return $self
 }
 
 
