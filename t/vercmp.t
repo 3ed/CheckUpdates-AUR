@@ -4,10 +4,10 @@ use strict;
 use warnings;
 use Test::More tests => 2;
 
-use CheckUpdates::AUR;
+use OS::CheckUpdates::AUR;
 use Try::Tiny;
 
-my $cua = CheckUpdates::AUR->new();
+my $cua = OS::CheckUpdates::AUR->new();
 
 sub test_try {
 	my $a = shift || undef;

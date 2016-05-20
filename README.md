@@ -1,4 +1,4 @@
-# CheckUpdates-AUR
+# OS-CheckUpdates-AUR
 
 ALPM (Arch Linux Package Manager) pacman include checkupdates which show you all packages that is not up2date in format:
 ```
@@ -27,8 +27,8 @@ checkupdates-aur|awk '{print $1}'
 ### Example2, fast list for your perl program:
 ```
 ...
-use CheckUpdates::AUR;
-my $cua = CheckUpdates::AUR->new();
+use OS::CheckUpdates::AUR;
+my $cua = OS::CheckUpdates::AUR->new();
 do_updates(@{$cua->get()});
 ...
 ```

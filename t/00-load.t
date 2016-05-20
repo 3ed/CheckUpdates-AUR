@@ -7,7 +7,7 @@ use Test::More;
 plan tests => 1;
 
 BEGIN {
-    use_ok( 'CheckUpdates::AUR' ) || print "Bail out!\n";
+    use_ok( 'OS::CheckUpdates::AUR' ) || print "Bail out!\n";
 }
 
-diag( "Testing CheckUpdates::AUR $CheckUpdates::AUR::VERSION, Perl $], $^X" );
+diag( "Testing OS::CheckUpdates::AUR $OS::CheckUpdates::AUR::VERSION, Perl $], $^X" );

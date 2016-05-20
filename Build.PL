@@ -4,10 +4,10 @@ use warnings;
 use Module::Build;
 
 my $builder = Module::Build->new(
-    module_name         => 'CheckUpdates::AUR',
+    module_name         => 'OS::CheckUpdates::AUR',
     license             => 'artistic_2',
     dist_author         => q{3ED <krzysztof1987@gmail.com>},
-    dist_version_from   => 'lib/CheckUpdates/AUR.pm',
+    dist_version_from   => 'lib/OS/CheckUpdates/AUR.pm',
     release_status      => 'stable',
     configure_requires => {
         'Module::Build' => 0,
@@ -20,7 +20,7 @@ my $builder = Module::Build->new(
         'JSON'                  => 0,
         'Try::Tiny'             => 0,
     },
-    add_to_cleanup     => [ 'CheckUpdates-AUR-*' ],
+    add_to_cleanup     => [ 'OS-CheckUpdates-AUR-*' ],
     create_makefile_pl => 'traditional',
 );
 

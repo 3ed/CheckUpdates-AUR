@@ -1,4 +1,4 @@
-package CheckUpdates::AUR;
+package OS::CheckUpdates::AUR;
 
 use v5.16;
 use strict;
@@ -13,7 +13,7 @@ use JSON;
 
 =head1 NAME
 
-CheckUpdates::AUR - checkupdates for aur
+OS::CheckUpdates::AUR - checkupdates for aur
 
 =head1 VERSION
 
@@ -30,9 +30,9 @@ checkupdates for aur
 
 Example of code:
 
-    use CheckUpdates::AUR;
+    use OS::CheckUpdates::AUR;
 
-    my $foo = CheckUpdates::AUR->new();
+    my $foo = OS::CheckUpdates::AUR->new();
 
     # Print available updates:
 
@@ -49,7 +49,7 @@ New...
 =cut
 
 sub new {
-    ### CheckUpdates-AUR created here
+    ### OS-CheckUpdates-AUR created here
     return bless({}, shift);
 }
 
@@ -177,7 +177,7 @@ sub multiinfo {
     my $lwp      = WWW::AUR::UserAgent->new(
         'timeout' => 10,
         'agent'   => sprintf(
-            'WWW::AUR/v%s (CheckUpdates::AUR/v%s)',
+            'WWW::AUR/v%s (OS::CheckUpdates::AUR/v%s)',
             $WWW::AUR::VERSION,
             $VERSION,
         ),
@@ -201,7 +201,7 @@ sub multiinfo {
 =head1 BUGS
 
 Please report any bugs or feature requests to C<bug-checkupdates-aur at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=CheckUpdates-AUR>.  I will be notified, and then you'll
+the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=OS-CheckUpdates-AUR>.  I will be notified, and then you'll
 automatically be notified of progress on your bug as I make changes.
 
 
@@ -211,7 +211,7 @@ automatically be notified of progress on your bug as I make changes.
 
 You can find documentation for this module with the perldoc command.
 
-    perldoc CheckUpdates::AUR
+    perldoc OS::CheckUpdates::AUR
 
 
 You can also look for information at:
@@ -220,19 +220,19 @@ You can also look for information at:
 
 =item * RT: CPAN's request tracker (report bugs here)
 
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=CheckUpdates-AUR>
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=OS-CheckUpdates-AUR>
 
 =item * AnnoCPAN: Annotated CPAN documentation
 
-L<http://annocpan.org/dist/CheckUpdates-AUR>
+L<http://annocpan.org/dist/OS-CheckUpdates-AUR>
 
 =item * CPAN Ratings
 
-L<http://cpanratings.perl.org/d/CheckUpdates-AUR>
+L<http://cpanratings.perl.org/d/OS-CheckUpdates-AUR>
 
 =item * Search CPAN
 
-L<http://search.cpan.org/dist/CheckUpdates-AUR/>
+L<http://search.cpan.org/dist/OS-CheckUpdates-AUR/>
 
 =back
 
@@ -283,4 +283,4 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =cut
 
-1; # End of CheckUpdates::AUR
+1; # End of OS::CheckUpdates::AUR

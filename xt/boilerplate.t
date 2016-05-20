@@ -50,7 +50,7 @@ TODO: {
     "placeholder date/time"       => qr(Date/time)
   );
 
-  module_boilerplate_ok('lib/CheckUpdates/AUR.pm');
+  module_boilerplate_ok('lib/OS/CheckUpdates/AUR.pm');
 
 
 }
