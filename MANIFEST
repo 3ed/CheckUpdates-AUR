@@ -1,6 +1,7 @@
 bin/checkupdates-aur
 Build.PL
 Changes
+ignore.txt
 lib/OS/CheckUpdates/AUR.pm
 LICENSE
 MANIFEST			This list of files
@@ -11,3 +12,7 @@ t/manifest.t
 t/pod-coverage.t
 t/pod.t
 t/vercmp.t
+xt/boilerplate.t
+Makefile.PL
+META.yml
+META.json
