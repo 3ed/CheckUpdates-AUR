@@ -28,16 +28,16 @@ try {
 
 sub read_from_stdin {
     my $re = qr{
-        (?<name>[a-z0-9_.@\+-]+)    # get package name
-        \s                          # separator
-        (?<version>[a-z0-9_.@\+-]+) # get package version
+        ([a-z0-9_.@\+-]+) # get package name
+        \s                # separator
+        ([a-z0-9_.@\+-]+) # get package version
     }ixas;
     # i - case-insensitive
     # x - extended regular expressions
     # a - ASCII-restrict
     # s - treat as single line
 
-    map { (/$re/) and $+{name} => $+{version} } <STDIN>;
+    map { (/$re/o) and $1 => $2 } <STDIN>;
 }
 
 sub usage {
