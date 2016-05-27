@@ -24,7 +24,13 @@ gnome-terminal -e 'sh -c  "yaourt -Syu --aur; echo; echo All done... now you can
 ```
 checkupdates-aur|awk '{print $1}'
 ```
-### Example2, fast list for your perl program:
+
+### Example2, list outdated local repo packages:
+```
+pacman -Sl my_own_repo | awk '{print $2" "$3}' | checkupdates-aur -
+```
+
+### Example3, fast list for your perl program:
 ```
 ...
 use OS::CheckUpdates::AUR;
@@ -32,6 +38,7 @@ my $cua = OS::CheckUpdates::AUR->new();
 do_updates(@{$cua->get()});
 ...
 ```
+
 # INSTALLATION
 
 To install this module, run the following commands:
