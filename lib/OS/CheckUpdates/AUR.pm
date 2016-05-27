@@ -3,6 +3,7 @@ package OS::CheckUpdates::AUR;
 use v5.16;
 use strict;
 use warnings;
+no warnings 'experimental::smartmatch';
 
 use if $ENV{CHECKUPDATES_DEBUG}, 'Smart::Comments';
 
@@ -17,11 +18,11 @@ OS::CheckUpdates::AUR - checkupdates for aur
 
 =head1 VERSION
 
-Version 0.04
+Version 0.05
 
 =cut
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 
 =head1 SYNOPSIS
@@ -53,9 +54,13 @@ sub new {
     return bless({}, shift);
 }
 
-=head2 get()
+=head2 get(@)
 
 Get array with checkupdates: [name, local_ver, aur_ver]
+
+Options:
+- empty: return all packages
+- (name, ...): return only this packages
 
 =cut
 
@@ -69,44 +74,57 @@ sub get {
 
     ### get() return updates
 
-    return $self->{'updates'};
+    return $self->{'updates'}   if $#_ == -1;
+    return grep { $_[0] ~~ @_ } $self->{'updates'}
 }
 
-=head2 print
+=head2 print(@)
 
 Print checkupdates into stdout in chekupdates format.
+
+Options:
+- empty: print all packages
+- (name, ...): print only this packages
 
 =cut
 
 sub print {
     my $self = shift;
 
-    printf("%s %s -> %s\n", @{$_}[0..2]) foreach (@{$self->get()});
+    printf("%s %s -> %s\n", @{$_}[0..2]) foreach (@{$self->get(@_)});
 
     return 1;
 }
 
-=head2 refresh()
+=head2 refresh(%)
 
 Create/retrive/parse/refresh data about packages.
+
+Options:
+- empty: check list of installed packages which are not found in sync db
+- pairs (package_name => package_ver, ...): check only this packages
 
 =cut
 
 sub refresh {
     my $self = shift;
     my $local;
+    use Data::Dumper;
 
     $self->{'updates'} = [];
 
     ### refresh() reading 'pacman -Qm' output
+    if ($#_ == -1) {
+        my $pipe = IO::Pipe->new->reader(qw[pacman -Qm]);
 
-    my $pipe = IO::Pipe->new();
-    $pipe->reader(qw[pacman -Qm]);
-
-    while(<$pipe>) {
-        my ($name, $version) = split(" ");
-        $local->{$name} = $version;
-    };
+        $local = {
+            map { (split " ")[0,1] } <$pipe>
+        };
+    } else {
+        $local = {
+            @_
+        };
+    }
 
     if ($#{[keys %$local]} < 0) {
         ### found 0 packages, nothing to do...
@@ -122,7 +140,11 @@ sub refresh {
     my %seen;
     foreach (@multiinfo_results) {
         my $name = $_->{'Name'};
-        my $vloc = $local->{$name}    or next;
+
+        exists $local->{$name}
+            or next;
+
+        my $vloc = $local->{$name};
         my $vaur = $_->{'Version'};
 
         !$seen{$name}++
@@ -137,7 +159,9 @@ sub refresh {
 
     return $self
 }
-
+# TODO:
+# - orphan()   - check which package been moved to community or been deleted
+# - get_info() - like get but with other details from aur
 
 =head2 vercmp($$)
 
@@ -149,8 +173,7 @@ sub vercmp {
     my ($self, $a, $b) = @_;
 
     if (defined $a and defined $b) {
-        my $pipe = IO::Pipe->new();
-        $pipe->reader('vercmp', $a, $b);
+        my $pipe = IO::Pipe->new->reader('vercmp', $a, $b);
 
         while(<$pipe>) {
             chomp;

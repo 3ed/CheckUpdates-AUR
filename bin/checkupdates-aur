@@ -2,24 +2,58 @@
 use v5.16;
 use strict;
 use warnings;
+no warnings 'experimental::smartmatch';
 
 use OS::CheckUpdates::AUR;
 use Try::Tiny;
 
 my $cua = OS::CheckUpdates::AUR->new;
+my %list;
 
-if (" @ARGV " =~ / -(h|-help) /) {
-	say("USAGE:\n    checkupdates-aur\n\nMORE INFO:\n    See man page...");
-	exit 0;
+if ('-h' ~~ @ARGV or '--help' ~~ @ARGV) {
+    say usage();
+    exit 0;
+} elsif ('-' ~~ @ARGV) {
+    %list = read_from_stdin();
 }
 
 try {
-	$cua->print();
+    $cua->refresh(%list)->print();
 } catch {
-	$ENV{CHECKUPDATES_DEBUG}
-		and print STDERR $_;
+    $ENV{CHECKUPDATES_DEBUG}
+        and print STDERR $_;
 
-	exit $!;
+    exit $!;
+};
+
+sub read_from_stdin {
+    my $re = qr{
+        (?<name>[a-z0-9_.@\+-]+)    # get package name
+        \s                          # separator
+        (?<version>[a-z0-9_.@\+-]+) # get package version
+    }ixas;
+    # i - case-insensitive
+    # x - extended regular expressions
+    # a - ASCII-restrict
+    # s - treat as single line
+
+    map { (/$re/) and $+{name} => $+{version} } <STDIN>;
+}
+
+sub usage {
+    <<'EOF';
+USAGE:
+    checkupdates-aur (-h|--help|-)
+
+OPTION '-':
+    You can sepcify packages to check.
+
+    $ checkupdates-aur   #is equal to:
+    $ pacman -Qm | checkupdates-aur -
+
+MORE INFO:
+    See man page...
+EOF
 }
 
 __END__
@@ -30,13 +64,13 @@ checkupdates-aur - checkupdates for aur
 
 =head1 VERSION
 
-Version 0.04
+Version 0.05
 
 =cut
 
 =head1 SYNOPSIS
 
-Prints updates for AUR in checkupdates format...
+Prints updates for packages installed from AUR (in checkupdates format)...
 
 Hint: Should be useful in "ArchLinux Updates Indicator" addon for Gnome-Shell.
 
@@ -44,13 +78,19 @@ Hint: Should be useful in "ArchLinux Updates Indicator" addon for Gnome-Shell.
 
 =head1 USAGE
 
-To run normally:
+To check updates:
 
-	checkupdates-aur
+    checkupdates-aur
+
+Or if you have local repo with packages from AUR:
+
+    pacman -Sl my_own_repo | awk '{print $2" "$3}' | checkupdates-aur -
+
+    Note: `pacman -Qm | checkupdates-aur -` is equal to: `checkupdates-aur`
 
 To run in debug mode:
 
-	CHECKUPDATES_DEBUG=1 checkupdates-aur
+    CHECKUPDATES_DEBUG=1 checkupdates-aur
 
 Debug mode require Smart::Comments
 
