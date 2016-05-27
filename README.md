@@ -22,7 +22,7 @@ gnome-terminal -e 'sh -c  "yaourt -Syu --aur; echo; echo All done... now you can
 ## Any other tools as frontend.
 ### Example1, list with names only:
 ```
-checkupdates-aur|awk '{print $1}'
+checkupdates-aur | awk '{print $1}'
 ```
 
 ### Example2, list outdated local repo packages:
