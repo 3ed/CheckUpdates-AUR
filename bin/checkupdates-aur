@@ -101,9 +101,12 @@ OPTIONS:
         on AUR.
 
     -
-        You can sepcify packages to check.
+        You can specify packages to check.
         $ checkupdates-aur   #is equal to:
         $ pacman -Qm | checkupdates-aur -
+
+    -h, --help
+        Display this help and exit.
 
 MORE INFO:
     See man page...
