@@ -137,30 +137,47 @@ sub refresh {
 
     ### refresh() comparing versions
 
-    my %seen;
     foreach (@multiinfo_results) {
         my $name = $_->{'Name'};
 
         exists $local->{$name}
-            or next;
+            or  next;
 
         my $vloc = $local->{$name};
         my $vaur = $_->{'Version'};
 
-        !$seen{$name}++
+        exists $local->{$name}
+            and delete $local->{$name}
             and ($vaur ne $vloc)
             and ($self->vercmp($vloc, $vaur) eq "-1")
             and push @{$self->{'updates'}}, [$name, $vloc, $vaur];
     }
 
+    @{$self->{'orphans'}} = sort keys %$local;
+
+    ### Orphans: $self->{'orphan'}
+
     ### Locally installed: $#{[keys %$local]} + 1
     ###      Found on AUR: $#multiinfo_results + 1
+    ###           Orphans: $#{$self->{'orphans'}} + 1
     ###           Updates: $#{$self->{'updates'}} + 1
 
     return $self
 }
+
+=head2 orphans()
+
+Show packages which can't be found on AUR
+
+=cut
+
+sub orphans() {
+    my $self = shift;
+
+    return @{$self->{'orphans'}}
+}
+
 # TODO:
-# - orphan()   - check which package been moved to community or been deleted
 # - get_info() - like get but with other details from aur
 
 =head2 vercmp($$)

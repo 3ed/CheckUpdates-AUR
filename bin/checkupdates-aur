@@ -19,6 +19,11 @@ if ('-h' ~~ @ARGV or '--help' ~~ @ARGV) {
 
 try {
     $cua->refresh(%list)->print();
+
+    if ('-o' ~~ @ARGV or '--orphans' ~~ @ARGV) {
+        say STDERR ":: Orphan: ".$_ foreach $cua->orphans();
+    };
+
 } catch {
     $ENV{CHECKUPDATES_DEBUG}
         and print STDERR $_;
@@ -37,19 +42,24 @@ sub read_from_stdin {
     # a - ASCII-restrict
     # s - treat as single line
 
-    map { (/$re/o) and $1 => $2 } <STDIN>;
+    map { if (/$re/o) { $1 => $2 } else { () } } <STDIN>;
 }
 
 sub usage {
     <<'EOF';
 USAGE:
-    checkupdates-aur (-h|--help|-)
+    checkupdates-aur (-h|--help)
+    checkupdates-aur (-o|--orphans|-)
 
-OPTION '-':
-    You can sepcify packages to check.
+OPTIONS:
+    -o, --orphans
+        Show installed packages that can't
+        be found on AUR.
 
-    $ checkupdates-aur   #is equal to:
-    $ pacman -Qm | checkupdates-aur -
+    -
+        You can sepcify packages to check.
+        $ checkupdates-aur   #is equal to:
+        $ pacman -Qm | checkupdates-aur -
 
 MORE INFO:
     See man page...
