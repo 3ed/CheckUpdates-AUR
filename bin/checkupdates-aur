@@ -92,8 +92,9 @@ sub read_from_stdin {
 sub usage {
     <<'EOF';
 USAGE:
-    checkupdates-aur (-h|--help)
+    checkupdates-aur
     checkupdates-aur (-o|--orphans|-)
+    checkupdates-aur (-h|--help)
 
 OPTIONS:
     -o, --orphans

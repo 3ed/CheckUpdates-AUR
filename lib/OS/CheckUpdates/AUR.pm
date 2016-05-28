@@ -62,6 +62,8 @@ Options:
 - empty: return all packages
 - (name, ...): return only this packages
 
+Note: scalar return count (warning: works only with empty options)
+
 =cut
 
 sub get {
@@ -73,9 +75,11 @@ sub get {
         or $self->refresh();
 
     ### get() return updates
-
-    return $self->{'updates'}   if $#_ == -1;
-    return grep { $_[0] ~~ @_ } $self->{'updates'}
+    $#_ == -1
+        and return wantarray
+            ? $self->{'updates'}
+            : $#{$self->{'updates'}} + 1
+        or  return grep { $_[0] ~~ @_ } $self->{'updates'};
 }
 
 =head2 print(@)
@@ -94,6 +98,22 @@ sub print {
     printf("%s %s -> %s\n", @{$_}[0..2]) foreach (@{$self->get(@_)});
 
     return 1;
+}
+
+=head2 orphans()
+
+Show packages that can't be found on AUR.
+
+Note: scalar return orphans count
+
+=cut
+
+sub orphans() {
+    my $self = shift;
+
+    return wantarray
+        ? @{$self->{'orphans'}}
+        : ($#{$self->{'orphans'}} + 1)
 }
 
 =head2 refresh(%)
@@ -146,8 +166,7 @@ sub refresh {
         my $vloc = $local->{$name};
         my $vaur = $_->{'Version'};
 
-        exists $local->{$name}
-            and delete $local->{$name}
+        delete $local->{$name}
             and ($vaur ne $vloc)
             and ($self->vercmp($vloc, $vaur) eq "-1")
             and push @{$self->{'updates'}}, [$name, $vloc, $vaur];
@@ -162,19 +181,6 @@ sub refresh {
 
     return $self
 }
-
-=head2 orphans()
-
-Show packages that can't be found on AUR.
-
-=cut
-
-sub orphans() {
-    my $self = shift;
-
-    return @{$self->{'orphans'}}
-}
-
 # TODO:
 # - get_info() - like get but with other details from aur
 
