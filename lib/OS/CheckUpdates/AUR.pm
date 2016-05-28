@@ -14,7 +14,7 @@ use JSON;
 
 =head1 NAME
 
-OS::CheckUpdates::AUR - checkupdates for aur
+OS::CheckUpdates::AUR - checkupdates for packages installed from AUR
 
 =head1 VERSION
 
@@ -155,8 +155,6 @@ sub refresh {
 
     @{$self->{'orphans'}} = sort keys %$local;
 
-    ### Orphans: $self->{'orphan'}
-
     ### Locally installed: $#{[keys %$local]} + 1
     ###      Found on AUR: $#multiinfo_results + 1
     ###           Orphans: $#{$self->{'orphans'}} + 1
@@ -167,7 +165,7 @@ sub refresh {
 
 =head2 orphans()
 
-Show packages which can't be found on AUR
+Show packages that can't be found on AUR.
 
 =cut
 
@@ -185,6 +183,9 @@ sub orphans() {
 Compare two versions in pacman way. Frontend for vercmp command.
 
 =cut
+
+# BTW: much faster is from C eg: Inline::C AUTOWRAP alpm.h alpm_vercmp($a, $b),
+# but much more complicated to implement as XS, maybe in future...
 
 sub vercmp {
     my ($self, $a, $b) = @_;

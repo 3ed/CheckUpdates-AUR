@@ -7,7 +7,51 @@ no warnings 'experimental::smartmatch';
 use OS::CheckUpdates::AUR;
 use Try::Tiny;
 
+=head1 NAME
+
+checkupdates-aur - checkupdates for packages installed from AUR
+
+=head1 VERSION
+
+Version 0.05
+
+=cut
+
 my $cua = OS::CheckUpdates::AUR->new;
+
+
+=head1 SYNOPSIS
+
+Prints updates for packages installed from AUR (in checkupdates format)...
+
+Hint: Should be useful in "ArchLinux Updates Indicator" addon for Gnome-Shell.
+
+=cut
+
+=head1 USAGE
+
+To check updates:
+
+    checkupdates-aur
+
+To show orphans on STDERR:
+
+    checkupdates-aur --orphans
+
+Or if you have local repo with packages from AUR:
+
+    pacman -Sl my_own_repo | awk '{print $2" "$3}' | checkupdates-aur -
+
+    Note: `pacman -Qm | checkupdates-aur -` is equal to: `checkupdates-aur`
+
+To run in debug mode:
+
+    CHECKUPDATES_DEBUG=1 checkupdates-aur
+
+Debug mode require Smart::Comments
+
+=cut
+
 my %list;
 
 if ('-h' ~~ @ARGV or '--help' ~~ @ARGV) {
@@ -53,8 +97,8 @@ USAGE:
 
 OPTIONS:
     -o, --orphans
-        Show installed packages that can't
-        be found on AUR.
+        Show packages that can't be found
+        on AUR.
 
     -
         You can sepcify packages to check.
@@ -65,46 +109,6 @@ MORE INFO:
     See man page...
 EOF
 }
-
-__END__
-
-=head1 NAME
-
-checkupdates-aur - checkupdates for aur
-
-=head1 VERSION
-
-Version 0.05
-
-=cut
-
-=head1 SYNOPSIS
-
-Prints updates for packages installed from AUR (in checkupdates format)...
-
-Hint: Should be useful in "ArchLinux Updates Indicator" addon for Gnome-Shell.
-
-=cut
-
-=head1 USAGE
-
-To check updates:
-
-    checkupdates-aur
-
-Or if you have local repo with packages from AUR:
-
-    pacman -Sl my_own_repo | awk '{print $2" "$3}' | checkupdates-aur -
-
-    Note: `pacman -Qm | checkupdates-aur -` is equal to: `checkupdates-aur`
-
-To run in debug mode:
-
-    CHECKUPDATES_DEBUG=1 checkupdates-aur
-
-Debug mode require Smart::Comments
-
-=cut
 
 =head1 AUTHOR
 
