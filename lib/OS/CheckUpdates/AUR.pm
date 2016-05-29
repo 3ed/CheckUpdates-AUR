@@ -154,6 +154,7 @@ sub refresh {
     ### refresh() getting multiinfo()
 
     my @multiinfo_results = @{$self->multiinfo(sort keys %$local)->{'results'}};
+    my $local_total = $#{[keys %$local]} + 1;
 
     ### refresh() comparing versions
 
@@ -174,7 +175,7 @@ sub refresh {
 
     @{$self->{'orphans'}} = sort keys %$local;
 
-    ### Locally installed: $#{[keys %$local]} + 1
+    ### Locally installed: $local_total
     ###      Found on AUR: $#multiinfo_results + 1
     ###           Orphans: $#{$self->{'orphans'}} + 1
     ###           Updates: $#{$self->{'updates'}} + 1

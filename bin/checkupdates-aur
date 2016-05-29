@@ -57,7 +57,7 @@ my %list;
 if ('-h' ~~ @ARGV or '--help' ~~ @ARGV) {
     say usage();
     exit 0;
-} elsif ('-' ~~ @ARGV) {
+} elsif ('-' ~~ @ARGV or '--stdin' ~~ @ARGV) {
     %list = read_from_stdin();
 }
 
@@ -93,7 +93,7 @@ sub usage {
     <<'EOF';
 USAGE:
     checkupdates-aur
-    checkupdates-aur (-o|--orphans|-)
+    checkupdates-aur (-o|--orphans|-|--stdin)
     checkupdates-aur (-h|--help)
 
 OPTIONS:
@@ -101,7 +101,7 @@ OPTIONS:
         Show packages that can't be found
         on AUR.
 
-    -
+    -, --stdin
         You can specify packages to check.
         $ checkupdates-aur   #is equal to:
         $ pacman -Qm | checkupdates-aur -
