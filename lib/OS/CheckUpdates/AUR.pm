@@ -1,8 +1,9 @@
 package OS::CheckUpdates::AUR;
 
-use v5.16;
+use 5.016;
 use strict;
 use warnings;
+use Carp;
 no warnings 'experimental::smartmatch';
 
 use if $ENV{CHECKUPDATES_DEBUG}, 'Smart::Comments';
@@ -23,7 +24,6 @@ Version 0.05
 =cut
 
 our $VERSION = '0.05';
-
 
 =head1 SYNOPSIS
 
@@ -51,7 +51,7 @@ New...
 
 sub new {
     ### OS-CheckUpdates-AUR created here
-    return bless({}, shift);
+    return bless {}, shift;
 }
 
 =head2 get(@)
@@ -72,14 +72,14 @@ sub get {
     ### get() run refresh() if updates db is not created
 
     exists $self->{'updates'}
-        or $self->refresh();
+      or $self->refresh();
 
     ### get() return updates
     $#_ == -1
-        and return wantarray
-            ? @{$self->{'updates'}}
-            : $#{$self->{'updates'}} + 1
-        or  return grep { $_[0] ~~ @_ } $self->{'updates'};
+      and return wantarray
+        ? @{ $self->{'updates'} }
+        : $#{ $self->{'updates'} } + 1
+      or return grep { $_[0] ~~ @_ } $self->{'updates'};
 }
 
 =head2 print(@)
@@ -95,7 +95,9 @@ Options:
 sub print {
     my $self = shift;
 
-    printf("%s %s -> %s\n", @{$_}[0..2]) foreach ($self->get(@_));
+    foreach ( $self->get(@_) ) {
+        printf "%s %s -> %s\n", @{$_}[ 0 .. 2 ];
+    }
 
     return 1;
 }
@@ -108,12 +110,12 @@ Note: scalar return orphans count
 
 =cut
 
-sub orphans() {
+sub orphans {
     my $self = shift;
 
     return wantarray
-        ? @{$self->{'orphans'}}
-        : ($#{$self->{'orphans'}} + 1)
+      ? @{ $self->{'orphans'} }
+      : $#{ $self->{'orphans'} } + 1;
 }
 
 =head2 refresh(%)
@@ -134,27 +136,26 @@ sub refresh {
     $self->{'updates'} = [];
 
     ### refresh() reading 'pacman -Qm' output
-    if ($#_ == -1) {
-        my $pipe = IO::Pipe->new->reader(qw[pacman -Qm]);
+    if ( $#_ == -1 ) {
+        my $pipe = IO::Pipe->new->reader(qw[pacman -Qm])
+            or confess __PACKAGE__, q/::refresh(): /, $!;
 
-        $local = {
-            map { (split " ")[0,1] } <$pipe>
-        };
-    } else {
-        $local = {
-            @_
-        };
+        $local = { map { ( split q{ } )[ 0, 1 ] } <$pipe> };
+    }
+    else {
+        $local = { @_ };
     }
 
-    if ($#{[keys %$local]} < 0) {
+    if ( $#{ [ keys %{$local} ] } < 0 ) {
         ### found 0 packages, nothing to do...
         return $self;
     }
 
     ### refresh() getting multiinfo()
 
-    my @multiinfo_results = @{$self->multiinfo(sort keys %$local)->{'results'}};
-    my $local_total = $#{[keys %$local]} + 1;
+    my @multiinfo_results =
+      @{ $self->multiinfo( sort keys %{$local} )->{'results'} };
+    my $local_total = $#{ [ keys %{$local} ] } + 1;
 
     ### refresh() comparing versions
 
@@ -162,26 +163,27 @@ sub refresh {
         my $name = $_->{'Name'};
 
         exists $local->{$name}
-            or  next;
+          or next;
 
         my $vloc = $local->{$name};
         my $vaur = $_->{'Version'};
 
         delete $local->{$name}
-            and ($vaur ne $vloc)
-            and ($self->vercmp($vloc, $vaur) eq "-1")
-            and push @{$self->{'updates'}}, [$name, $vloc, $vaur];
+          and ( $vaur ne $vloc )
+          and ( $self->vercmp( $vloc, $vaur ) eq q/-1/ )
+          and push @{ $self->{'updates'} }, [ $name, $vloc, $vaur ];
     }
 
-    @{$self->{'orphans'}} = sort keys %$local;
+    @{ $self->{'orphans'} } = sort keys %{$local};
 
     ### Locally installed: $local_total
     ###      Found on AUR: $#multiinfo_results + 1
     ###           Orphans: $#{$self->{'orphans'}} + 1
     ###           Updates: $#{$self->{'updates'}} + 1
 
-    return $self
+    return $self;
 }
+
 # TODO:
 # - get_info() - like get but with other details from aur
 
@@ -195,23 +197,24 @@ Compare two versions in pacman way. Frontend for vercmp command.
 # but much more complicated to implement as XS, maybe in future...
 
 sub vercmp {
-    my ($self, $a, $b) = @_;
+    my ( $self, $a, $b ) = @_;
 
-    if (defined $a and defined $b) {
-        my $pipe = IO::Pipe->new->reader('vercmp', $a, $b);
+    if ( defined $a and defined $b ) {
+        my $pipe = IO::Pipe->new->reader( 'vercmp', $a, $b );
 
-        while(<$pipe>) {
+        while (<$pipe>) {
             chomp;
 
-            /^(-1|0|1)$/
-                and return scalar $_
-                or  last;
-        };
+            /^(-1|[01])$/osm
+              and return scalar $_
+              or last;
+        }
+        $! = 1;
+        confess  __PACKAGE__, '::vercmp(): command generate unproper output';
+    }
 
-        $!=1; die(__PACKAGE__ . '->varcmp(): command not generated proper output');
-    };
-
-    $!=1; die(__PACKAGE__ . '->varcmp(): one or more versions are empty');
+    $! = 1;
+    confess __PACKAGE__, '::vercmp(): one or more versions are empty';
 }
 
 =head2 multiinfo(@)
@@ -221,25 +224,26 @@ Fast method to get info about multiple packages.
 =cut
 
 sub multiinfo {
-    my $self     = shift;
-    my $lwp      = WWW::AUR::UserAgent->new(
+    my $self = shift;
+    my $lwp  = WWW::AUR::UserAgent->new(
         'timeout' => 10,
         'agent'   => sprintf(
             'WWW::AUR/v%s (OS::CheckUpdates::AUR/v%s)',
-            $WWW::AUR::VERSION,
-            $VERSION,
+            $WWW::AUR::VERSION, $VERSION,
         ),
         'protocols_allowed' => ['https'],
     );
 
-    my $response = $lwp->get(rpc_uri('multiinfo', @_));
+    my $response = $lwp->get( rpc_uri( 'multiinfo', @_ ) );
 
     $response->is_success
-        and return decode_json($response->decoded_content);
+      and return decode_json( $response->decoded_content );
 
     ### LWP decoded: $response->decoded_content
 
-    $!=1; die(__PACKAGE__ . '->multiinfo(): LWP status error: ' . $response->status_line)
+    $! = 1;
+    confess __PACKAGE__, '::multiinfo(): LWP status error: '
+          . $response->status_line;
 }
 
 =head1 AUTHOR
@@ -331,4 +335,4 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =cut
 
-1; # End of OS::CheckUpdates::AUR
+1;    # End of OS::CheckUpdates::AUR

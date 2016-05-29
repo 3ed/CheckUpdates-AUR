@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-use v5.16;
+use 5.016;
 use strict;
 use warnings;
 no warnings 'experimental::smartmatch';
@@ -17,8 +17,8 @@ Version 0.05
 
 =cut
 
-my $cua = OS::CheckUpdates::AUR->new;
-
+my  $cua = OS::CheckUpdates::AUR->new;
+our $VERSION = $OS::CheckUpdates::AUR::VERSION;;
 
 =head1 SYNOPSIS
 
@@ -54,43 +54,48 @@ Debug mode require Smart::Comments
 
 my %list;
 
-if ('-h' ~~ @ARGV or '--help' ~~ @ARGV) {
+if ( '-h' ~~ @ARGV or '--help' ~~ @ARGV ) {
     say usage();
     exit 0;
-} elsif ('-' ~~ @ARGV or '--stdin' ~~ @ARGV) {
+}
+elsif ( '-' ~~ @ARGV or '--stdin' ~~ @ARGV ) {
     %list = read_from_stdin();
 }
 
 try {
     $cua->refresh(%list)->print();
 
-    if ('-o' ~~ @ARGV or '--orphans' ~~ @ARGV) {
-        say STDERR ":: Orphan: ".$_ foreach $cua->orphans();
-    };
+    if ( '-o' ~~ @ARGV or '--orphans' ~~ @ARGV ) {
+        foreach ( $cua->orphans() ) {
+            say {*STDERR} ':: Orphan: ', $_;
+        }
+    }
 
-} catch {
+}
+catch {
     $ENV{CHECKUPDATES_DEBUG}
-        and print STDERR $_;
+      and print {*STDERR} ($_);
 
     exit $!;
 };
 
 sub read_from_stdin {
     my $re = qr{
-        ([a-z0-9_.@\+-]+) # get package name
-        \s                # separator
-        ([a-z0-9_.@\+-]+) # get package version
-    }ixas;
+        ([\w\.\+@-]+) # get package name
+        \s            # separator
+        ([\w\.\+@-]+) # get package version
+    }isaxm;
+
     # i - case-insensitive
     # x - extended regular expressions
     # a - ASCII-restrict
     # s - treat as single line
 
-    map { if (/$re/o) { $1 => $2 } else { () } } <STDIN>;
+    return map { if (/^$re$/isoxm) { $1 => $2 } else { () } } <>;
 }
 
 sub usage {
-    <<'EOF';
+    return <<'EOF';
 USAGE:
     checkupdates-aur
     checkupdates-aur (-o|--orphans|-|--stdin)
