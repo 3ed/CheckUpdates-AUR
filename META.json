@@ -1,5 +1,5 @@
 {
-   "abstract" : "checkupdates for aur",
+   "abstract" : "checkupdates for packages installed from AUR",
    "author" : [
       "3ED <krzysztof1987@gmail.com>"
    ],
@@ -35,7 +35,7 @@
    "provides" : {
       "OS::CheckUpdates::AUR" : {
          "file" : "lib/OS/CheckUpdates/AUR.pm",
-         "version" : "0.04"
+         "version" : "0.05"
       }
    },
    "release_status" : "stable",
@@ -44,6 +44,5 @@
          "http://opensource.org/licenses/artistic-license-2.0.php"
       ]
    },
-   "version" : "0.04",
-   "x_serialization_backend" : "JSON::PP version 2.27300"
+   "version" : "0.05"
 }
