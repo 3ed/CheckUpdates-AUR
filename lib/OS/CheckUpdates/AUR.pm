@@ -95,7 +95,7 @@ Options:
 sub print {
     my $self = shift;
 
-    printf("%s %s -> %s\n", @{$_}[0..2]) foreach (@{$self->get(@_)});
+    printf("%s %s -> %s\n", @{$_}[0..2]) foreach (@{$self->get(@_) || []});
 
     return 1;
 }
