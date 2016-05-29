@@ -77,7 +77,7 @@ sub get {
     ### get() return updates
     $#_ == -1
         and return wantarray
-            ? $self->{'updates'}
+            ? @{$self->{'updates'}}
             : $#{$self->{'updates'}} + 1
         or  return grep { $_[0] ~~ @_ } $self->{'updates'};
 }
@@ -95,7 +95,7 @@ Options:
 sub print {
     my $self = shift;
 
-    printf("%s %s -> %s\n", @{$_}[0..2]) foreach (@{$self->get(@_) || []});
+    printf("%s %s -> %s\n", @{$_}[0..2]) foreach ($self->get(@_));
 
     return 1;
 }
