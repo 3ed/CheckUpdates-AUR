@@ -1,78 +1,119 @@
 package OS::CheckUpdates::AUR;
 
-use 5.016;
-use strict;
-use warnings;
-use Carp;
+use 5.022;
+
 no warnings 'experimental::smartmatch';
 
 use if $ENV{CHECKUPDATES_DEBUG}, 'Smart::Comments';
 
+use Carp;
 use WWW::AUR::URI qw(rpc_uri);
 use WWW::AUR::UserAgent;
 use IO::Pipe;
 use JSON;
 
-=head1 NAME
-
-OS::CheckUpdates::AUR - checkupdates for packages installed from AUR
-
-=head1 VERSION
-
-Version 0.05
-
-=cut
-
 our $VERSION = '0.05';
 
-=head1 SYNOPSIS
-
-checkupdates for aur
-
-Example of code:
-
-    use OS::CheckUpdates::AUR;
-
-    my $foo = OS::CheckUpdates::AUR->new();
-
-    # Print available updates:
-
-    $foo->print();
-    # or
-    printf("%s %s -> %s\n", @{$_}[0..2]) foreach (@{$foo->get()});
-
-=head1 SUBROUTINES/METHODS
-
-=head2 new()
-
-New...
-
-=cut
 
 sub new {
     ### OS-CheckUpdates-AUR created here
-    return bless {}, shift;
+    return (bless {}, shift)->_new_parseArgs(@_);
 }
 
-=head2 get(@)
+    sub _new_parseArgs {
+        my ($self, %args) = @_;
 
-Get array with checkupdates: [name, local_ver, aur_ver]
+        foreach (keys %args) {
+            when ("packages") {
+                $self->{'localQueryPkgs'} =$self->_new_parseArgs_packages( $args{$_} )}
+            default {
+                confess "Unknown option"}
+        }
 
-Options:
-- empty: return all packages
-- (name, ...): return only this packages
+        return $self->refresh()
+    }
 
-Note: scalar return count (warning: works only with empty options)
+    sub _new_parseArgs_packages {
+        my ($self, $packages) = @_;
 
-=cut
+        given (ref $packages) {
+            when("HASH") {
+                return $packages; }
+            when ("") {
+                ($packages eq ":forgein" or $packages eq "")
+                    and return $self->_get_forgeinPkgs(); }
+        }
+
+        confess "Unknown option";
+    }
+
+    sub _get_forgeinPkgs {
+        my $self = shift;
+
+        my $pipe = IO::Pipe->new->reader(qw[pacman -Qm])
+            or confess __PACKAGE__, q/::_get__ForgeinPkgs: /, $!;
+
+        return { map { ( split q{ } )[ 0, 1 ] } <$pipe> };
+    }
+
+
+sub refresh {
+    my $self = shift;
+
+    $self->{'updates'} = [];
+
+    $self->{'stats'} = {
+        requested => $#{[keys %{$self->{localQueryPkgs}}]} + 1,
+        retrived  => 0,
+        orphaned  => -1,
+        updates   => -1,
+    };
+
+    if ( $self->{'stats'}->{'requested'} <= 0 ) {
+        ### found 0 packages, nothing to do...
+        return $self;
+    }
+
+    ### refresh() getting multiinfo()
+
+    my @remotePkgs = @{ $self
+        ->multiinfo( sort keys %{$self->{localQueryPkgs}} )
+        ->{'results'} };
+
+    my $localPkgs = $self->{localQueryPkgs};
+
+    foreach (@remotePkgs) {
+        my $name = $_->{'Name'};
+
+        exists $localPkgs->{$name}
+          or next;
+
+        my $lver = $localPkgs->{$name};
+        my $rver = $_->{'Version'};
+
+        delete $localPkgs->{$name};
+
+        $lver ne $rver
+            and $self->vercmp($lver, $rver) eq q/-1/
+            and push @{$self->{'updates'}}, [$name, $lver, $rver];
+    }
+
+    @{$self->{'orphans'}} = sort keys %{$localPkgs};
+
+    $self->{'stats'}->{'retrived'} = $#remotePkgs + 1;
+    $self->{'stats'}->{'orphaned'} = $#{$self->{'orphans'}} + 1;
+    $self->{'stats'}->{'updates'}  = $#{$self->{'updates'}} + 1;
+
+    ### Requested: $self->{'stats'}->{'requested'}
+    ###  Retrived: $self->{'stats'}->{'retrived'}
+    ###  Orphaned: $self->{'stats'}->{'orphaned'}
+    ###   Updates: $self->{'stats'}->{'updates'}
+
+    return $self;
+}
 
 sub get {
     my $self = shift;
-
-    ### get() run refresh() if updates db is not created
-
-    exists $self->{'updates'}
-      or $self->refresh();
 
     ### get() return updates
     $#_ == -1
@@ -81,16 +122,6 @@ sub get {
         : $#{ $self->{'updates'} } + 1
       or return grep { $_[0] ~~ @_ } $self->{'updates'};
 }
-
-=head2 print(@)
-
-Print checkupdates into stdout in chekupdates format.
-
-Options:
-- empty: print all packages
-- (name, ...): print only this packages
-
-=cut
 
 sub print {
     my $self = shift;
@@ -102,14 +133,6 @@ sub print {
     return 1;
 }
 
-=head2 orphans()
-
-Show packages that can't be found on AUR.
-
-Note: scalar return orphans count
-
-=cut
-
 sub orphans {
     my $self = shift;
 
@@ -118,80 +141,11 @@ sub orphans {
       : $#{ $self->{'orphans'} } + 1;
 }
 
-=head2 refresh(%)
-
-Create/retrive/parse/refresh data about packages.
-
-Options:
-- empty: check list of installed packages which are not found in sync db
-- pairs (package_name => package_ver, ...): check only this packages
-
-=cut
-
-sub refresh {
+sub stats {
     my $self = shift;
-    my $local;
-    use Data::Dumper;
 
-    $self->{'updates'} = [];
-
-    ### refresh() reading 'pacman -Qm' output
-    if ( $#_ == -1 ) {
-        my $pipe = IO::Pipe->new->reader(qw[pacman -Qm])
-            or confess __PACKAGE__, q/::refresh(): /, $!;
-
-        $local = { map { ( split q{ } )[ 0, 1 ] } <$pipe> };
-    }
-    else {
-        $local = { @_ };
-    }
-
-    if ( $#{ [ keys %{$local} ] } < 0 ) {
-        ### found 0 packages, nothing to do...
-        return $self;
-    }
-
-    ### refresh() getting multiinfo()
-
-    my @multiinfo_results =
-      @{ $self->multiinfo( sort keys %{$local} )->{'results'} };
-    my $local_total = $#{ [ keys %{$local} ] } + 1;
-
-    ### refresh() comparing versions
-
-    foreach (@multiinfo_results) {
-        my $name = $_->{'Name'};
-
-        exists $local->{$name}
-          or next;
-
-        my $vloc = $local->{$name};
-        my $vaur = $_->{'Version'};
-
-        delete $local->{$name}
-          and ( $vaur ne $vloc )
-          and ( $self->vercmp( $vloc, $vaur ) eq q/-1/ )
-          and push @{ $self->{'updates'} }, [ $name, $vloc, $vaur ];
-    }
-
-    @{ $self->{'orphans'} } = sort keys %{$local};
-
-    ### Locally installed: $local_total
-    ###      Found on AUR: $#multiinfo_results + 1
-    ###           Orphans: $#{$self->{'orphans'}} + 1
-    ###           Updates: $#{$self->{'updates'}} + 1
-
-    return $self;
+    return $self->{'stats'}
 }
-
-# TODO:
-# - get_info() - like get but with other details from aur
-
-=head2 vercmp($$)
-
-Compare two versions in pacman way. Frontend for vercmp command.
-
-=cut
 
 # BTW: much faster is from C eg: Inline::C AUTOWRAP alpm.h alpm_vercmp($a, $b),
 # but much more complicated to implement as XS, maybe in future...
@@ -217,12 +171,6 @@ sub vercmp {
     confess __PACKAGE__, '::vercmp(): one or more versions are empty';
 }
 
-=head2 multiinfo(@)
-
-Fast method to get info about multiple packages.
-
-=cut
-
 sub multiinfo {
     my $self = shift;
     my $lwp  = WWW::AUR::UserAgent->new(
@@ -246,16 +194,97 @@ sub multiinfo {
           . $response->status_line;
 }
 
+1;
+
+__END__
+
+=head1 NAME
+
+OS::CheckUpdates::AUR - checkupdates for packages installed from AUR
+
+=head1 VERSION
+
+Version 0.05
+
+=head1 SYNOPSIS
+
+checkupdates for aur
+
+Example of code:
+
+    use OS::CheckUpdates::AUR;
+
+    my $foo = OS::CheckUpdates::AUR->new();
+
+    # Print available updates:
+
+    $foo->print();
+    # or
+    printf("%s %s -> %s\n", @{$_}[0..2]) foreach (@{$foo->get()});
+
+=head1 SUBROUTINES/METHODS
+
+=head2 new()
+
+New...
+
+=head2 get(@)
+
+Get array with checkupdates: [name, local_ver, aur_ver]
+
+Options:
+- empty: return all packages
+- (name, ...): return only this packages
+
+Note: scalar return count (warning: works only with empty options)
+
+=head2 print(@)
+
+Print checkupdates into stdout in chekupdates format.
+
+Options:
+- empty: print all packages
+- (name, ...): print only this packages
+
+=head2 orphans()
+
+Show packages that can't be found on AUR.
+
+Note: scalar return orphans count
+
+=head2 stats()
+
+Show packages that can't be found on AUR.
+
+Note: scalar return orphans count
+
+=head2 refresh(%)
+
+Create/retrive/parse/refresh data about packages.
+
+Options:
+- empty: check list of installed packages which are not found in sync db
+- pairs (package_name => package_ver, ...): check only this packages
+
+=head2 vercmp($$)
+
+Compare two versions in pacman way. Frontend for vercmp command.
+
+=head2 multiinfo(@)
+
+Fast method to get info about multiple packages.
+
 =head1 AUTHOR
 
 3ED, C<< <krzysztof1987 at gmail.com> >>
+
+
 
 =head1 BUGS
 
 Please report any bugs or feature requests to C<bug-checkupdates-aur at rt.cpan.org>, or through
 the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=OS-CheckUpdates-AUR>.  I will be notified, and then you'll
 automatically be notified of progress on your bug as I make changes.
-
 
 
 
@@ -334,5 +363,3 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 =cut
-
-1;    # End of OS::CheckUpdates::AUR

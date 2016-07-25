@@ -1,58 +1,13 @@
 #!/usr/bin/perl
-use 5.016;
-use strict;
-use warnings;
+use 5.022;
+
 no warnings 'experimental::smartmatch';
 
 use OS::CheckUpdates::AUR;
 use Try::Tiny;
 
-=head1 NAME
-
-checkupdates-aur - checkupdates for packages installed from AUR
-
-=head1 VERSION
-
-Version 0.05
-
-=cut
-
-my  $cua = OS::CheckUpdates::AUR->new;
-our $VERSION = $OS::CheckUpdates::AUR::VERSION;;
-
-=head1 SYNOPSIS
-
-Prints updates for packages installed from AUR (in checkupdates format)...
-
-Hint: Should be useful in "ArchLinux Updates Indicator" addon for Gnome-Shell.
-
-=cut
-
-=head1 USAGE
-
-To check updates:
-
-    checkupdates-aur
-
-To show orphans on STDERR:
-
-    checkupdates-aur --orphans
-
-Or if you have local repo with packages from AUR:
-
-    pacman -Sl my_own_repo | awk '{print $2" "$3}' | checkupdates-aur -
-
-    Note: `pacman -Qm | checkupdates-aur -` is equal to: `checkupdates-aur`
-
-To run in debug mode:
-
-    CHECKUPDATES_DEBUG=1 checkupdates-aur
-
-Debug mode require Smart::Comments
-
-=cut
-
-my %list;
+our $VERSION = '0.05';
+my  %list;
 
 if ( '-h' ~~ @ARGV or '--help' ~~ @ARGV ) {
     say usage();
@@ -63,13 +18,16 @@ elsif ( '-' ~~ @ARGV or '--stdin' ~~ @ARGV ) {
 }
 
 try {
-    $cua->refresh(%list)->print();
+    my $cua = OS::CheckUpdates::AUR->new(
+        packages => keys %list ? {%list} : ':forgein'
+    );
+    $cua->print();
 
-    if ( '-o' ~~ @ARGV or '--orphans' ~~ @ARGV ) {
-        foreach ( $cua->orphans() ) {
-            say {*STDERR} ':: Orphan: ', $_;
-        }
-    }
+    # if ( '-o' ~~ @ARGV or '--orphans' ~~ @ARGV ) {
+    #     foreach ( $cua->orphans() ) {
+    #         say {*STDERR} ':: Orphan: ', $_;
+    #     }
+    # }
 
 }
 catch {
@@ -118,6 +76,45 @@ MORE INFO:
     See man page...
 EOF
 }
+
+__END__
+
+=head1 NAME
+
+checkupdates-aur - checkupdates for packages installed from AUR
+
+=head1 VERSION
+
+Version 0.05
+
+=head1 SYNOPSIS
+
+Prints updates for packages installed from AUR (in checkupdates format)...
+
+Hint: Should be useful in "ArchLinux Updates Indicator" addon for Gnome-Shell.
+
+=head1 USAGE
+
+To check updates:
+
+    checkupdates-aur
+
+To show orphans on STDERR:
+
+    checkupdates-aur --orphans
+
+Or if you have local repo with packages from AUR:
+
+    pacman -Sl my_own_repo | awk '{print $2" "$3}' | checkupdates-aur -
+
+    Note: `pacman -Qm | checkupdates-aur -` is equal to: `checkupdates-aur`
+
+To run in debug mode:
+
+    CHECKUPDATES_DEBUG=1 checkupdates-aur
+
+Debug mode require Smart::Comments
+
 
 =head1 AUTHOR
 

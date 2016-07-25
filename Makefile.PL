@@ -2,18 +2,18 @@
 use ExtUtils::MakeMaker;
 WriteMakefile
 (
+  'VERSION_FROM' => 'lib/OS/CheckUpdates/AUR.pm',
+  'INSTALLDIRS' => 'site',
+  'PL_FILES' => {},
+  'NAME' => 'OS::CheckUpdates::AUR',
+  'PREREQ_PM' => {
+                   'JSON' => 0,
+                   'Try::Tiny' => 0,
+                   'WWW::AUR' => '0.19',
+                   'Test::More' => 0
+                 },
   'EXE_FILES' => [
                    'bin/checkupdates-aur'
-                 ],
-  'NAME' => 'OS::CheckUpdates::AUR',
-  'INSTALLDIRS' => 'site',
-  'PREREQ_PM' => {
-                   'Try::Tiny' => 0,
-                   'Test::More' => 0,
-                   'JSON' => 0,
-                   'WWW::AUR' => '0.19'
-                 },
-  'PL_FILES' => {},
-  'VERSION_FROM' => 'lib/OS/CheckUpdates/AUR.pm'
+                 ]
 )
 ;
