@@ -4,7 +4,7 @@
       "3ED <krzysztof1987@gmail.com>"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "Module::Build version 0.4218",
+   "generated_by" : "Module::Build version 0.422",
    "license" : [
       "artistic_2"
    ],
@@ -26,6 +26,7 @@
       },
       "runtime" : {
          "requires" : {
+            "Capture::Tiny" : "0",
             "JSON" : "0",
             "Try::Tiny" : "0",
             "WWW::AUR" : "0.19"
@@ -36,6 +37,12 @@
       "OS::CheckUpdates::AUR" : {
          "file" : "lib/OS/CheckUpdates/AUR.pm",
          "version" : "0.05"
+      },
+      "OS::CheckUpdates::AUR::Capture" : {
+         "file" : "lib/OS/CheckUpdates/AUR.pm"
+      },
+      "OS::CheckUpdates::AUR::stats" : {
+         "file" : "lib/OS/CheckUpdates/AUR.pm"
       }
    },
    "release_status" : "stable",

@@ -19,6 +19,7 @@ my $builder = Module::Build->new(
         'WWW::AUR'              => 0.19,
         'JSON'                  => 0,
         'Try::Tiny'             => 0,
+        'Capture::Tiny'         => 0,
     },
     add_to_cleanup     => [ 'OS-CheckUpdates-AUR-*' ],
     create_makefile_pl => 'traditional',

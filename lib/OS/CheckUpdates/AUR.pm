@@ -1,3 +1,65 @@
+package OS::CheckUpdates::AUR::Stats;
+use feature 'signatures';
+no warnings 'experimental::signatures';
+
+sub new ($class) {
+    return bless {}, ref($class) || $class
+}
+
+sub requested (
+    $self,
+    $opt = (return $self->{requested} // 0 )
+) {
+    return $self->{requested} = $opt
+}
+
+sub retrived  (
+    $self,
+    $opt = (return $self->{retrived}  // 0 )
+) {
+    return $self->{retrived} = $opt
+}
+
+sub orphaned  (
+    $self,
+    $opt = (return $self->{orphaned}  // -1)
+) {
+    return $self->{orphaned} = $opt
+}
+
+sub updates   (
+    $self,
+    $opt = (return $self->{updates}   // -1)
+) {
+    return $self->{updates} = $opt
+}
+
+1;
+
+package OS::CheckUpdates::AUR::Capture;
+
+use 5.022;
+
+use Capture::Tiny qw( capture );
+use Carp;
+
+sub capture_cmd {
+    my ($self, @opts) = @_;
+
+    my ($stdout, $stderr, $exit) = capture {
+        local $ENV{LC_ALL} = 'C';
+        system(@opts);
+    };
+
+    confess $opts[0], "(stderr): ", $stderr
+        unless $exit == 0;
+
+    chomp  $stdout;
+    return $stdout;
+}
+
+1;
+
 package OS::CheckUpdates::AUR;
 
 use 5.022;
@@ -9,11 +71,22 @@ use if $ENV{CHECKUPDATES_DEBUG}, 'Smart::Comments';
 use Carp;
 use WWW::AUR::URI qw(rpc_uri);
 use WWW::AUR::UserAgent;
-use IO::Pipe;
 use JSON;
+
+use parent -norequire, q(OS::CheckUpdates::AUR::Capture);
 
 our $VERSION = '0.05';
 
+# new(packages|pacman|files, []|{})
+# @format = [command, args, optional_opts|undef],
+#           [command, args, optional_opts|undef],
+#           [...],
+# 
+# [COMMAND,   ARGS,                          OPTIONAL_OPTS]
+# 
+# [packages,  [[name, ver], [name2, ver2]],  undef]
+# [pacman,    ['-Qqm'],                      { columns => { name => 1, ver => 2 } }]
+# [files,     ['folder1', 'folder2'],        { regexp => '...[^-]*.pkg.tar.xz$' }]
 
 sub new {
     ### OS-CheckUpdates-AUR created here
@@ -25,7 +98,7 @@ sub new {
 
         foreach (keys %args) {
             when ("packages") {
-                $self->{'localQueryPkgs'} =$self->_new_parseArgs_packages( $args{$_} )}
+                $self->{'localQueryPkgs'} = $self->_new_parseArgs_packages( $args{$_} )}
             default {
                 confess "Unknown option"}
         }
@@ -48,66 +121,69 @@ sub new {
     }
 
     sub _get_forgeinPkgs {
-        my $self = shift;
-
-        my $pipe = IO::Pipe->new->reader(qw[pacman -Qm])
-            or confess __PACKAGE__, q/::_get__ForgeinPkgs: /, $!;
-
-        return { map { ( split q{ } )[ 0, 1 ] } <$pipe> };
+        return {
+            map {
+                ( split q{ } )[ 0, 1 ]
+            } split /\n/, shift->capture_cmd(qw(pacman -Qm))
+        };
     }
 
+sub stats {
+    my $self = shift;
+    return $self->{'stats'} //= OS::CheckUpdates::AUR::Stats->new();
+}
 
 sub refresh {
     my $self = shift;
 
     $self->{'updates'} = [];
 
-    $self->{'stats'} = {
-        requested => $#{[keys %{$self->{localQueryPkgs}}]} + 1,
-        retrived  => 0,
-        orphaned  => -1,
-        updates   => -1,
-    };
+    $self->{'stats'} = OS::CheckUpdates::AUR::Stats->new(); # new empty
 
-    if ( $self->{'stats'}->{'requested'} <= 0 ) {
+    $self->stats
+    ->requested(
+        $#{[keys $self->{localQueryPkgs}->%*]} + 1
+    );
+
+    if ( $self->stats->requested <= 0 ) {
         ### found 0 packages, nothing to do...
         return $self;
     }
 
     ### refresh() getting multiinfo()
 
-    my @remotePkgs = @{ $self
-        ->multiinfo( sort keys %{$self->{localQueryPkgs}} )
-        ->{'results'} };
+    my @remotePkgs = $self
+        ->multiinfo( sort keys $self->{localQueryPkgs}->%* )
+        ->{'results'}
+        ->@*;
 
     my $localPkgs = $self->{localQueryPkgs};
 
-    foreach (@remotePkgs) {
-        my $name = $_->{'Name'};
+    for (my $i=0; $i <= $#remotePkgs; $i++) {
+        my $name = $remotePkgs[$i]->{'Name'};
 
         exists $localPkgs->{$name}
           or next;
 
         my $lver = $localPkgs->{$name};
-        my $rver = $_->{'Version'};
+        my $rver = $remotePkgs[$i]->{'Version'};
 
         delete $localPkgs->{$name};
 
-        $lver ne $rver
-            and $self->vercmp($lver, $rver) eq q/-1/
-            and push @{$self->{'updates'}}, [$name, $lver, $rver];
+        $self->vercmp([$lver, $rver]) eq q/-1/
+            and push $self->{'updates'}->@*, [$name, $lver, $rver];
     }
 
-    @{$self->{'orphans'}} = sort keys %{$localPkgs};
+    $self->{'orphans'}->@* = sort keys $localPkgs->%*;
 
-    $self->{'stats'}->{'retrived'} = $#remotePkgs + 1;
-    $self->{'stats'}->{'orphaned'} = $#{$self->{'orphans'}} + 1;
-    $self->{'stats'}->{'updates'}  = $#{$self->{'updates'}} + 1;
+    $self->stats->retrived($#remotePkgs + 1);
+    $self->stats->orphaned($self->{'orphans'}->$#* + 1);
+    $self->stats->updates ($self->{'updates'}->$#* + 1);
 
-    ### Requested: $self->{'stats'}->{'requested'}
-    ###  Retrived: $self->{'stats'}->{'retrived'}
-    ###  Orphaned: $self->{'stats'}->{'orphaned'}
-    ###   Updates: $self->{'stats'}->{'updates'}
+    ### Requested: $self->stats->requested
+    ###  Retrived: $self->stats->retrived
+    ###  Orphaned: $self->stats->orphaned
+    ###   Updates: $self->stats->updates
 
     return $self;
 }
@@ -117,11 +193,10 @@ sub get {
 
     ### get() return updates
     $#_ == -1
-      and return wantarray
-        ? @{ $self->{'updates'} }
-        : $#{ $self->{'updates'} } + 1
-      or return grep { $_[0] ~~ @_ } $self->{'updates'};
+      and return $self->{'updates'}->@*
+      or return grep { $_[0] ~~ @_ } $self->{'updates'}; # TODO: $_ & @_ ???
 }
+
 
 sub print {
     my $self = shift;
@@ -141,34 +216,27 @@ sub orphans {
       : $#{ $self->{'orphans'} } + 1;
 }
 
-sub stats {
-    my $self = shift;
-
-    return $self->{'stats'}
-}
-
-# BTW: much faster is from C eg: Inline::C AUTOWRAP alpm.h alpm_vercmp($a, $b),
-# but much more complicated to implement as XS, maybe in future...
-
 sub vercmp {
-    my ( $self, $a, $b ) = @_;
+    my ( $self, $opts ) = @_;
 
-    if ( defined $a and defined $b ) {
-        my $pipe = IO::Pipe->new->reader( 'vercmp', $a, $b );
+    unless (
+        $opts->$#* == 1
+            and defined $opts->@[0]
+            and defined $opts->@[1]
+    ) {
+        $! = 1; # exit code
+        confess __PACKAGE__,
+            '::vercmp(): one or more versions are empty';
+    };
 
-        while (<$pipe>) {
-            chomp;
+    return 0  if $opts->@[0] eq $opts->@[1];
 
-            /^(-1|[01])$/osm
-              and return scalar $_
-              or last;
-        }
-        $! = 1;
-        confess  __PACKAGE__, '::vercmp(): command generate unproper output';
-    }
+    my $vercmp = $self->capture_cmd('vercmp', $opts->@*);
+
+    return $vercmp  if $vercmp =~ /^(-1|0|1)$/osm;
 
     $! = 1;
-    confess __PACKAGE__, '::vercmp(): one or more versions are empty';
+    confess  __PACKAGE__, '::vercmp(): command generate unproper output';
 }
 
 sub multiinfo {

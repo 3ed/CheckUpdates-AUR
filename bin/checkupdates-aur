@@ -49,7 +49,7 @@ sub read_from_stdin {
     # a - ASCII-restrict
     # s - treat as single line
 
-    return map { if (/^$re$/isoxm) { $1 => $2 } else { () } } <>;
+    return map { if (/^$re$/isoxm) { $1 => $2 } else { () } } <STDIN>;
 }
 
 sub usage {
