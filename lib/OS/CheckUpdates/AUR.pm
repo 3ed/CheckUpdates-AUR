@@ -2,36 +2,41 @@ package OS::CheckUpdates::AUR::Stats;
 use feature 'signatures';
 no warnings 'experimental::signatures';
 
-sub new ($class) {
+sub _new ($class) {
     return bless {}, ref($class) || $class
+}
+
+sub _clear ($self) {
+    $self->%* = ();
+    return $self;
 }
 
 sub requested (
     $self,
-    $opt = (return $self->{requested} // 0 )
+    $value = (return $self->{requested} //=  0)
 ) {
-    return $self->{requested} = $opt
+    return $self->{requested} = $value
 }
 
-sub retrived  (
+sub retrived (
     $self,
-    $opt = (return $self->{retrived}  // 0 )
+    $value = (return $self->{retrived}  //=  0)
 ) {
-    return $self->{retrived} = $opt
+    return $self->{retrived} = $value
 }
 
-sub orphaned  (
+sub orphaned (
     $self,
-    $opt = (return $self->{orphaned}  // -1)
+    $value = (return $self->{orphaned}  //= -1)
 ) {
-    return $self->{orphaned} = $opt
+    return $self->{orphaned} = $value
 }
 
-sub updates   (
+sub updates (
     $self,
-    $opt = (return $self->{updates}   // -1)
+    $value = (return $self->{updates}   //= -1)
 ) {
-    return $self->{updates} = $opt
+    return $self->{updates} = $value
 }
 
 1;
@@ -41,7 +46,13 @@ package OS::CheckUpdates::AUR::Capture;
 use 5.022;
 
 use Capture::Tiny qw( capture );
+use Path::Tiny    qw( path );
+
 use Carp;
+
+#---------------------------------------------
+# Any command output
+#---------------------------------------------
 
 sub capture_cmd {
     my ($self, @opts) = @_;
@@ -58,7 +69,117 @@ sub capture_cmd {
     return $stdout;
 }
 
+#---------------------------------------------
+# Pacman output
+#---------------------------------------------
+sub parse_pacman {
+    my ($self, $pacman_opts, $filter) = @_;
+
+    return $self->parse_pacman_output(
+        $self->capture_cmd('pacman', $pacman_opts->@*),
+        $filter
+    );
+}
+
+sub parse_pacman_output {
+    my ($self, $output, $filter) = @_;
+
+    return OS::CheckUpdates::AUR::Filter::Pacman
+        ->new($output)
+        ->filter($filter)
+        ->get();
+}
+
+#---------------------------------------------
+# Files
+#---------------------------------------------
+
+sub capture_files {
+    my ($self, $dirs, $regexp) = @_;
+    my (@packages, $r);
+
+    $regexp //= '(?<name>.*)-(?<ver>[^-]*-[^-]*)-[^-]*\.pkg\.tar\.xz';
+
+    $r = qr/$regexp/sn
+        or confess __PACKAGE__,
+            '->capture_files([...], ->here<-): bad regexp';
+
+
+    dir: for (my $i=0; $i <= $dirs->$#*; $i++) {
+        my $dir = path($dirs->@[$i]);
+
+        $dir->is_dir or next dir;
+
+        my $iter = $dir->iterator({
+            recurse => 0,
+            follow_symlinks => 0,
+        });
+
+        file: while (my $file = $iter->()) {
+            $file->is_file or next file;
+
+            $file->basename =~ m/$r/
+                and defined $+{name}
+                and defined $+{ver}
+                and push @packages, {$+{name} => $+{ver}};
+        }
+    }
+    return @packages
+}
+
 1;
+
+package OS::CheckUpdates::AUR::Filter::Pacman;
+use 5.022;
+use feature 'signatures';
+no warnings 'experimental::signatures';
+
+use Carp;
+
+sub new (
+    $class,
+    $output = (confess(__PACKAGE__, ': new without pacman output'))
+) {
+    return bless { 'output' => $output }, ref($class) || $class
+}
+
+sub output ($self) {
+    return $self->{'output'}
+}
+
+sub filter ($self, $filter) {
+    my %filter_opts;
+
+    %filter_opts = $filter->@[1]->%*
+        if defined $filter->@[1];
+
+    if ($filter->@[0] eq 'columns') {
+        $self->{'filtered'} = $self->filter_columns(%filter_opts);
+    } else { confess 'pacman filter do not recognized' };
+
+    return $self;
+}
+
+sub filter_columns ($self, %filter) {
+    return {}
+        if length $self->output < 5;
+
+    $filter{'name'} //= 0;
+    $filter{'ver'}  //= 1;
+
+    return {
+        map {
+            ( split q{ } )[ $filter{'name'}, $filter{'ver'} ]
+        } split /\n/, $self->output
+    };
+}
+
+sub get ($self) {
+    return $self->{'filtered'};
+}
+
+1;
+
 
 package OS::CheckUpdates::AUR;
 
@@ -87,10 +208,21 @@ our $VERSION = '0.05';
 # [packages,  [[name, ver], [name2, ver2]],  undef]
 # [pacman,    ['-Qqm'],                      { columns => { name => 1, ver => 2 } }]
 # [files,     ['folder1', 'folder2'],        { regexp => '...[^-]*.pkg.tar.xz$' }]
+# [output,    ['output']                     { columns => { name => 1, ver => 2 } }]
+#
+# or?
+#
+# packages => [['-Qm'], { columns => { name => 1, ver => 2 } }] # de-facto paired array
+
 
 sub new {
     ### OS-CheckUpdates-AUR created here
-    return (bless {}, shift)->_new_parseArgs(@_);
+    return (bless {}, shift)->_new_parseArgs(@_)->refresh;
+}
+
+sub new_lazy {
+    ### OS-CheckUpdates-AUR lazy created here
+    return (bless {}, shift)->_new_parseArgs(@_); # TODO: Do not parse here
 }
 
     sub _new_parseArgs {
@@ -103,7 +235,7 @@ sub new {
                 confess "Unknown option"}
         }
 
-        return $self->refresh()
+        return $self
     }
 
     sub _new_parseArgs_packages {
@@ -130,7 +262,7 @@ sub new {
 
 sub stats {
     my $self = shift;
-    return $self->{'stats'} //= OS::CheckUpdates::AUR::Stats->new();
+    return $self->{'stats'} //= OS::CheckUpdates::AUR::Stats->_new();
 }
 
 sub refresh {
@@ -138,7 +270,7 @@ sub refresh {
 
     $self->{'updates'} = [];
 
-    $self->{'stats'} = OS::CheckUpdates::AUR::Stats->new(); # new empty
+    $self->stats->_clear; # emptify
 
     $self->stats
     ->requested(
@@ -157,7 +289,7 @@ sub refresh {
         ->{'results'}
         ->@*;
 
-    my $localPkgs = $self->{localQueryPkgs};
+    my $localPkgs = {$self->{localQueryPkgs}->%*};
 
     for (my $i=0; $i <= $#remotePkgs; $i++) {
         my $name = $remotePkgs[$i]->{'Name'};
