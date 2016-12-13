@@ -9,6 +9,12 @@ use Try::Tiny;
 our $VERSION = '0.05';
 my  %list;
 
+my @Args = (
+    pacman => [
+        ['-Qm'], columns => {name => 0, ver => 1}
+    ]
+);
+
 if ( '-h' ~~ @ARGV or '--help' ~~ @ARGV ) {
     say usage();
     exit 0;
@@ -18,9 +24,7 @@ elsif ( '-' ~~ @ARGV or '--stdin' ~~ @ARGV ) {
 }
 
 try {
-    my $cua = OS::CheckUpdates::AUR->new(
-        packages => keys %list ? {%list} : ':forgein'
-    );
+    my $cua = OS::CheckUpdates::AUR->new(@Args);
     $cua->print();
 
     # if ( '-o' ~~ @ARGV or '--orphans' ~~ @ARGV ) {
@@ -38,6 +42,7 @@ catch {
 };
 
 sub read_from_stdin {
+    die 'TODO';
     my $re = qr{
         ([\w\.\+@-]+) # get package name
         \s            # separator
