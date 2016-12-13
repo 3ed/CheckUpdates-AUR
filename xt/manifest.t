@@ -4,8 +4,8 @@ use strict;
 use warnings;
 use Test::More;
 
-unless ( $ENV{RELEASE_TESTING} ) {
-    plan( skip_all => "Author tests not required for installation" );
+unless ($ENV{TEST_AUTHOR_CHECKUPDATE}) {
+    plan skip_all => 'Author test. (TEST_AUTHOR_CHECKUPDATE=1 to run)';
 }
 
 my $min_tcm = 0.9;

@@ -3,9 +3,11 @@ abstract: 'checkupdates for packages installed from AUR'
 author:
   - '3ED <krzysztof1987@gmail.com>'
 build_requires:
+  Module::Build::Pluggable::AuthorTests: '0.01'
   Test::More: '0'
 configure_requires:
   Module::Build: '0'
+  Module::Build::Pluggable::AuthorTests: '0.01'
 dynamic_config: 1
 generated_by: 'Module::Build version 0.422, CPAN::Meta::Converter version 2.150005'
 license: artistic_2
@@ -19,11 +21,16 @@ provides:
     version: '0.05'
   OS::CheckUpdates::AUR::Capture:
     file: lib/OS/CheckUpdates/AUR.pm
-  OS::CheckUpdates::AUR::stats:
+  OS::CheckUpdates::AUR::Filter::Pacman:
+    file: lib/OS/CheckUpdates/AUR.pm
+  OS::CheckUpdates::AUR::ParseArgs:
+    file: lib/OS/CheckUpdates/AUR.pm
+  OS::CheckUpdates::AUR::Stats:
     file: lib/OS/CheckUpdates/AUR.pm
 requires:
   Capture::Tiny: '0'
   JSON: '0'
+  Path::Tiny: '0'
   Try::Tiny: '0'
   WWW::AUR: '0.19'
 resources:

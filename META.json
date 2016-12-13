@@ -16,18 +16,21 @@
    "prereqs" : {
       "build" : {
          "requires" : {
+            "Module::Build::Pluggable::AuthorTests" : "0.01",
             "Test::More" : "0"
          }
       },
       "configure" : {
          "requires" : {
-            "Module::Build" : "0"
+            "Module::Build" : "0",
+            "Module::Build::Pluggable::AuthorTests" : "0.01"
          }
       },
       "runtime" : {
          "requires" : {
             "Capture::Tiny" : "0",
             "JSON" : "0",
+            "Path::Tiny" : "0",
             "Try::Tiny" : "0",
             "WWW::AUR" : "0.19"
          }
@@ -41,7 +44,13 @@
       "OS::CheckUpdates::AUR::Capture" : {
          "file" : "lib/OS/CheckUpdates/AUR.pm"
       },
-      "OS::CheckUpdates::AUR::stats" : {
+      "OS::CheckUpdates::AUR::Filter::Pacman" : {
+         "file" : "lib/OS/CheckUpdates/AUR.pm"
+      },
+      "OS::CheckUpdates::AUR::ParseArgs" : {
+         "file" : "lib/OS/CheckUpdates/AUR.pm"
+      },
+      "OS::CheckUpdates::AUR::Stats" : {
          "file" : "lib/OS/CheckUpdates/AUR.pm"
       }
    },
