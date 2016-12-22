@@ -128,17 +128,12 @@ sub get ($self) {
 
 1;
 
-package OS::CheckUpdates::AUR::ParseArgs;
+package OS::CheckUpdates::AUR::Base::ParseArgs;
 use 5.022;
 use feature qw(signatures postderef);
 no warnings qw(experimental::signatures experimental::postderef);
 
 use Carp;
-
-use parent -norequire, qw(
-    OS::CheckUpdates::AUR::ParseArgs::get
-    OS::CheckUpdates::AUR::ParseArgs::parse
-);
 
 # new(packages|pacman|files => [])
 #
@@ -228,40 +223,21 @@ sub _parse_make($self) {
 }
 1;
 
-package OS::CheckUpdates::AUR::ParseArgs::get;
-use 5.022;
-use feature qw(signatures postderef);
-no warnings qw(experimental::signatures experimental::postderef);
-
-sub get_count($self) {
-    return scalar keys $self->{'parsed'}->%*;
-}
-
-sub get_keys($self) {
-    return keys $self->{'parsed'}->%*
-}
-
-sub get_sorted_keys($self) {
-    return sort keys $self->{'parsed'}->%*
-}
-
-sub get_hash_copy($self) {
-    return {$self->{'parsed'}->%*}
-}
-
-sub get_hash($self) {
-    return \$self->{'parsed'}->%*
-}
-1;
-
-package OS::CheckUpdates::AUR::ParseArgs::parse;
+package OS::CheckUpdates::AUR::ParseArgs;
 use 5.022;
 use feature qw(signatures postderef);
 no warnings qw(experimental::signatures experimental::postderef);
 
 use Carp;
 use Path::Tiny qw( path );
-use parent -norequire, q(OS::CheckUpdates::AUR::Capture);
+use parent -norequire, qw(
+    OS::CheckUpdates::AUR::Base::ParseArgs
+    OS::CheckUpdates::AUR::Capture
+);
+
+#-------------------------------------------------------------------------------
+# parse_* // parse_something == ->parser('something' => [@args])
+#-------------------------------------------------------------------------------
 
 sub parse_files($self, $dirs, %opts) {
     $dirs = [$dirs] unless ref $dirs; # string to array
@@ -350,6 +326,29 @@ sub parse_packages($self, $opts1, %opts2) {
 
 }
 
+#-------------------------------------------------------------------------------
+# get_* // get_something == ->('something')
+#-------------------------------------------------------------------------------
+
+sub get_count($self) {
+    return scalar keys $self->{'parsed'}->%*;
+}
+
+sub get_keys($self) {
+    return keys $self->{'parsed'}->%*
+}
+
+sub get_sorted_keys($self) {
+    return sort keys $self->{'parsed'}->%*
+}
+
+sub get_hash_copy($self) {
+    return {$self->{'parsed'}->%*}
+}
+
+sub get_hash($self) {
+    return \$self->{'parsed'}->%*
+}
 1;
 
 package OS::CheckUpdates::AUR;
