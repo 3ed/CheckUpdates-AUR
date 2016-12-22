@@ -11,7 +11,7 @@ my  %list;
 
 my @Args = (
     pacman => [
-        ['-Qm'], columns => {name => 0, ver => 1}
+        [qw/-Qm/], columns => {name => 0, ver => 1}
     ]
 );
 

@@ -134,9 +134,11 @@ use feature qw(signatures postderef);
 no warnings qw(experimental::signatures experimental::postderef);
 
 use Carp;
-use Path::Tiny qw( path );
 
-use parent -norequire, q(OS::CheckUpdates::AUR::Capture);
+use parent -norequire, qw(
+    OS::CheckUpdates::AUR::ParseArgs::get
+    OS::CheckUpdates::AUR::ParseArgs::parse
+);
 
 # new(packages|pacman|files => [])
 #
@@ -181,45 +183,27 @@ sub _parser_sub($self) {
 
         if(not exists  $self->{'parsed'} or $opt eq "refresh") {
             $opt = "hash" if $opt eq "refresh"; # exception
-            $self->_parser_make;
+            $self->_parse_make;
         }
 
         return $self->_get_make($opt);
     }
 }
 
+# reserved: get_*
 sub _get_make($self, $opt) {
     confess __PACKAGE__, '->parser(): count value must be a string'
         unless ref $opt eq "";
 
-    if (my $method = $self->can('_get_make_'.$opt)) {
+    if (my $method = $self->can('get_'.$opt)) {
         return $self->$method;
     } else {
         confess __PACKAGE__, '->parser(): unknown counter';
     }
 }
 
-sub _get_make_count($self) {
-    return scalar keys $self->{'parsed'}->%*;
-}
-
-sub _get_make_keys($self) {
-    return keys $self->{'parsed'}->%*
-}
-
-sub _get_make_sorted_keys($self) {
-    return sort keys $self->{'parsed'}->%*
-}
-
-sub _get_make_hash_copy($self) {
-    return {$self->{'parsed'}->%*}
-}
-
-sub _get_make_hash($self) {
-    return \$self->{'parsed'}->%*
-}
-
-sub _parser_make($self) {
+# reserved: parse_*
+sub _parse_make($self) {
     my $i = 0;
     while ($self->{Args}->@[$i]) {
         confess __PACKAGE__, '->parser(): ',
@@ -229,7 +213,7 @@ sub _parser_make($self) {
 
         if (
             # ->...<- => [['...', ''...'], ... => ...]
-            my $method = $self->can('_parser_make_' . $self->{Args}->@[$i++])
+            my $method = $self->can('parse_' . $self->{Args}->@[$i++])
         ) {
             # ... => ->[['...', ''...'], ... => ...]<-
             $self->$method($self->{Args}->@[$i++]->@*);
@@ -242,8 +226,44 @@ sub _parser_make($self) {
 
     return $self
 }
+1;
 
-sub _parser_make_files($self, $dirs, %opts) {
+package OS::CheckUpdates::AUR::ParseArgs::get;
+use 5.022;
+use feature qw(signatures postderef);
+no warnings qw(experimental::signatures experimental::postderef);
+
+sub get_count($self) {
+    return scalar keys $self->{'parsed'}->%*;
+}
+
+sub get_keys($self) {
+    return keys $self->{'parsed'}->%*
+}
+
+sub get_sorted_keys($self) {
+    return sort keys $self->{'parsed'}->%*
+}
+
+sub get_hash_copy($self) {
+    return {$self->{'parsed'}->%*}
+}
+
+sub get_hash($self) {
+    return \$self->{'parsed'}->%*
+}
+1;
+
+package OS::CheckUpdates::AUR::ParseArgs::parse;
+use 5.022;
+use feature qw(signatures postderef);
+no warnings qw(experimental::signatures experimental::postderef);
+
+use Carp;
+use Path::Tiny qw( path );
+use parent -norequire, q(OS::CheckUpdates::AUR::Capture);
+
+sub parse_files($self, $dirs, %opts) {
     $dirs = [$dirs] unless ref $dirs; # string to array
 
     confess __PACKAGE__, '->parser(): ',
@@ -301,18 +321,18 @@ sub _parser_make_files($self, $dirs, %opts) {
     return $self;
 }
 
-sub _parser_make_pacman(
+sub parse_pacman(
     $self,
     $pacman_opts,
     @filter
 ) {
-    return $self->_parser_make_output(
+    return $self->parse_output(
         $self->capture_cmd('pacman', $pacman_opts->@*),
         @filter
     );
 }
 
-sub _parser_make_output(
+sub parse_output(
     $self,
     $output,
     $filter_name = "columns",
@@ -326,7 +346,7 @@ sub _parser_make_output(
     return $self;
 }
 
-sub _parser_make_packages($self, $opts1, %opts2) {
+sub parse_packages($self, $opts1, %opts2) {
 
 }
 
