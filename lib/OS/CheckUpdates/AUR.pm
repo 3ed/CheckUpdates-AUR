@@ -142,9 +142,10 @@ use Carp;
 # packages => [[[name, ver], [name2, ver2]]                                    ]
 # pacman   => [['-Qm'],             columns  => { name => 0, ver => 1 }        ]
 # pacman   => [['-Sl', 'lan'],      columns  => { name => 1, ver => 2 }        ]
+# output   => ['output'             columns  => { name => 1, ver => 2 }]
+# fh       => [\$FH,                columns  => { name => 0, ver => 1 }        ]
 # files    => ['folder',                     regexp => '...[^-]*.pkg.tar.xz$' }]
 # files    => [['folder1', 'folder2'],       regexp => '...[^-]*.pkg.tar.xz$' }]
-# output   => ['output'                      columns => { name => 1, ver => 2 }]
 
 
 # sub parser($class, @Args) {
@@ -240,12 +241,7 @@ use parent -norequire, qw(
 #-------------------------------------------------------------------------------
 
 sub parse_files($self, $dirs, %opts) {
-    $dirs = [$dirs] unless ref $dirs; # string to array
-
-    confess __PACKAGE__, '->parser(): ',
-            'type is ', lc ref $dirs,
-            ' but should be string or array: ... => [->here<-, ...]'
-        if ref $dirs ne 'ARRAY';
+    $dirs = [$dirs] if ref $dirs ne 'ARRAY'; # any to array
 
 
     $opts{'regexp'}          //= '(?<name>.*)-(?<ver>[^-]*-[^-]*)-[^-]*\.pkg\.tar\.xz';
@@ -255,32 +251,31 @@ sub parse_files($self, $dirs, %opts) {
 
     my $r = qr/$opts{'regexp'}/sn
         or confess __PACKAGE__, '->parser(): ',
-                   'bad regexp: files => ['...', regexp => ->here<-]';
+                   'bad regexp: ',
+                   'files => [[...], regexp => ->here<-]';
 
 
     dir: for (my $i=0; $i <= $dirs->$#*; $i++) {
+
+        # confess if not string
+        confess __PACKAGE__, '->parser(): ',
+                'type is ', lc ref $dirs->@[$i], ' ',
+                'but should be string: ',
+                'files => [->here<-, ...]'
+            if ref $dirs->@[$i] ne '';
+
+        # initiate Path::Tiny
         my $dir = path($dirs->@[$i]);
 
-        $dir->is_dir or next dir;
+        # confess if is not dir
+        confess __PACKAGE__, '->parser(): ',
+                'path is not a folder: ',
+                'files => [->here<-, ...]'
+            unless $dir->is_dir;
 
-        ### iterator method
-        #
-        # my $iter = $dir->iterator({
-        #     recurse         => $opts{'recursive'},
-        #     follow_symlinks => $opts{'follow_symlinks'},
-        # });
-
-        # file: while (my $file = $iter->()) {
-        #     $file->is_file
-        #         and $file->basename =~ m/$r/
-        #         and defined $+{name}
-        #         and defined $+{ver}
-        #         and $self->{'parsed'}->{$+{name}} = $+{ver};
-        # }
-
-        ### visit method
-        #
+        # scour through dir(s)
         $dir->visit(sub{
+            # if is file and not link and regexp pass
             $_->is_file
                 and $_->basename =~ m/$r/
                 and defined $+{name}
@@ -297,15 +292,37 @@ sub parse_files($self, $dirs, %opts) {
     return $self;
 }
 
+sub parse_fh(
+    $self,
+    $fh,
+    @filter
+) {
+    confess __PACKAGE__, '->parser(): ',
+            'type is ', lc ref $fh, ' ',
+            'but should be fh: ',
+            'fh => [->here<-, ...]'
+        unless ref $fh eq 'GLOB';
+
+    # read fh then pass to parse_output
+    $self->parse_output(
+        join("", <$fh>),
+        @filter
+    );
+
+    return $self;
+}
+
 sub parse_pacman(
     $self,
     $pacman_opts,
     @filter
 ) {
-    return $self->parse_output(
+    $self->parse_output(
         $self->capture_cmd('pacman', $pacman_opts->@*),
         @filter
     );
+
+    return $self;
 }
 
 sub parse_output(
@@ -323,6 +340,7 @@ sub parse_output(
 }
 
 sub parse_packages($self, $opts1, %opts2) {
+
 
 }
 

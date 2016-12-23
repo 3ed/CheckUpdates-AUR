@@ -11,7 +11,7 @@ my  %list;
 
 my @Args = (
     pacman => [
-        [qw/-Qm/], columns => {name => 0, ver => 1}
+        ['-Qm'], columns => {name => 0, ver => 1}
     ]
 );
 
@@ -20,18 +20,22 @@ if ( '-h' ~~ @ARGV or '--help' ~~ @ARGV ) {
     exit 0;
 }
 elsif ( '-' ~~ @ARGV or '--stdin' ~~ @ARGV ) {
-    %list = read_from_stdin();
+    @Args = (
+        fh => [
+            \*STDIN, columns => {name => 0, ver => 1}
+        ]
+    );
 }
 
 try {
     my $cua = OS::CheckUpdates::AUR->new(@Args);
     $cua->print();
 
-    # if ( '-o' ~~ @ARGV or '--orphans' ~~ @ARGV ) {
-    #     foreach ( $cua->orphans() ) {
-    #         say {*STDERR} ':: Orphan: ', $_;
-    #     }
-    # }
+    if ( '-o' ~~ @ARGV or '--orphans' ~~ @ARGV ) {
+        foreach ( $cua->orphans() ) {
+            say {*STDERR} ':: Orphan: ', $_;
+        }
+    }
 
 }
 catch {
@@ -40,22 +44,6 @@ catch {
 
     exit $!;
 };
-
-sub read_from_stdin {
-    die 'TODO';
-    my $re = qr{
-        ([\w\.\+@-]+) # get package name
-        \s            # separator
-        ([\w\.\+@-]+) # get package version
-    }isaxm;
-
-    # i - case-insensitive
-    # x - extended regular expressions
-    # a - ASCII-restrict
-    # s - treat as single line
-
-    return map { if (/^$re$/isoxm) { $1 => $2 } else { () } } <STDIN>;
-}
 
 sub usage {
     return <<'EOF';
