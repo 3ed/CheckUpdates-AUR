@@ -139,10 +139,10 @@ use Carp;
 #
 # COMMAND  => [ARGS,                         OPTIONAL_OPTS                     ]
 # ------------------------------------------------------------------------------
-# packages => [[[name, ver], [name2, ver2]]                                    ]
+# packages => [qw/name1 ver1/, 'name2', 'ver2', 'name3' => 'ver3'              ]
 # pacman   => [['-Qm'],             columns  => { name => 0, ver => 1 }        ]
 # pacman   => [['-Sl', 'lan'],      columns  => { name => 1, ver => 2 }        ]
-# output   => ['output'             columns  => { name => 1, ver => 2 }]
+# output   => ['output'             columns  => { name => 1, ver => 2 }        ]
 # fh       => [\$FH,                columns  => { name => 0, ver => 1 }        ]
 # files    => ['folder',                     regexp => '...[^-]*.pkg.tar.xz$' }]
 # files    => [['folder1', 'folder2'],       regexp => '...[^-]*.pkg.tar.xz$' }]
@@ -179,6 +179,7 @@ sub _parser_sub($self) {
 
         if(not exists  $self->{'parsed'} or $opt eq "refresh") {
             $opt = "hash" if $opt eq "refresh"; # exception
+            $self->{'parsed'}->%* = (); # ???
             $self->_parse_make;
         }
 
@@ -339,9 +340,12 @@ sub parse_output(
     return $self;
 }
 
-sub parse_packages($self, $opts1, %opts2) {
-
-
+sub parse_packages(
+    $self,
+    %packages
+) {
+    $self->{'parsed'}->@{keys %packages} = values %packages;
+    return $self;
 }
 
 #-------------------------------------------------------------------------------
