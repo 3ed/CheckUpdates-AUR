@@ -17,7 +17,7 @@
 #     INSTALLDIRS => q[site]
 #     NAME => q[OS::CheckUpdates::AUR]
 #     PL_FILES => {  }
-#     PREREQ_PM => { Capture::Tiny=>q[0], JSON=>q[0], Test::More=>q[0], Try::Tiny=>q[0], WWW::AUR=>q[0.19] }
+#     PREREQ_PM => { Capture::Tiny=>q[0], JSON=>q[0], Module::Build::Pluggable::AuthorTests=>q[0.01], Path::Tiny=>q[0], Test::More=>q[0], Try::Tiny=>q[0], WWW::AUR=>q[0.19] }
 #     TEST_REQUIRES => {  }
 #     VERSION_FROM => q[lib/OS/CheckUpdates/AUR.pm]
 
@@ -491,7 +491,7 @@ realclean_subdirs :
 # Delete temporary files (via clean) and also delete dist files
 realclean purge ::  clean realclean_subdirs
 	- $(RM_F) \
-	  $(FIRST_MAKEFILE) $(MAKEFILE_OLD) 
+	  $(MAKEFILE_OLD) $(FIRST_MAKEFILE) 
 	- $(RM_RF) \
 	  $(DISTVNAME) 
 
@@ -521,6 +521,8 @@ metafile : create_distdir
 	$(NOECHO) $(ECHO) 'requires:' >> META_new.yml
 	$(NOECHO) $(ECHO) '  Capture::Tiny: '\''0'\''' >> META_new.yml
 	$(NOECHO) $(ECHO) '  JSON: '\''0'\''' >> META_new.yml
+	$(NOECHO) $(ECHO) '  Module::Build::Pluggable::AuthorTests: '\''0.01'\''' >> META_new.yml
+	$(NOECHO) $(ECHO) '  Path::Tiny: '\''0'\''' >> META_new.yml
 	$(NOECHO) $(ECHO) '  Test::More: '\''0'\''' >> META_new.yml
 	$(NOECHO) $(ECHO) '  Try::Tiny: '\''0'\''' >> META_new.yml
 	$(NOECHO) $(ECHO) '  WWW::AUR: '\''0.19'\''' >> META_new.yml
@@ -564,6 +566,8 @@ metafile : create_distdir
 	$(NOECHO) $(ECHO) '         "requires" : {' >> META_new.json
 	$(NOECHO) $(ECHO) '            "Capture::Tiny" : "0",' >> META_new.json
 	$(NOECHO) $(ECHO) '            "JSON" : "0",' >> META_new.json
+	$(NOECHO) $(ECHO) '            "Module::Build::Pluggable::AuthorTests" : "0.01",' >> META_new.json
+	$(NOECHO) $(ECHO) '            "Path::Tiny" : "0",' >> META_new.json
 	$(NOECHO) $(ECHO) '            "Test::More" : "0",' >> META_new.json
 	$(NOECHO) $(ECHO) '            "Try::Tiny" : "0",' >> META_new.json
 	$(NOECHO) $(ECHO) '            "WWW::AUR" : "0.19"' >> META_new.json
@@ -879,6 +883,8 @@ ppd :
 	$(NOECHO) $(ECHO) '    <IMPLEMENTATION>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <REQUIRE NAME="Capture::Tiny" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <REQUIRE NAME="JSON::" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <REQUIRE NAME="Module::Build::Pluggable::AuthorTests" VERSION="0.01" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <REQUIRE NAME="Path::Tiny" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <REQUIRE NAME="Test::More" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <REQUIRE NAME="Try::Tiny" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <REQUIRE NAME="WWW::AUR" VERSION="0.19" />' >> $(DISTNAME).ppd

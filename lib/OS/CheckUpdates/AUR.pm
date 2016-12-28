@@ -391,10 +391,13 @@ use parent -norequire, q(OS::CheckUpdates::AUR::Capture);
 our $VERSION = '0.05';
 
 
+
 #-------------------------------------------------------------------------------
 # Constructor
 #-------------------------------------------------------------------------------
 
+use overload
+    '""' => sub { print shift->stringify(); "" };
 
 sub new {
     my ($class, @args) = @_;
@@ -492,14 +495,18 @@ sub get {
       or return grep { $_[0] ~~ @_ } $self->{'updates'}; # TODO: $_ & @_ ???
 }
 
+sub stringify {
+    my $self = shift;
+
+    return join "\n", map {
+        sprintf("%s %s -> %s", $_->@[ 0 .. 2 ])
+    } $self->get(@_);
+}
 
 sub print {
     my $self = shift;
 
-    foreach ( $self->get(@_) ) {
-        printf "%s %s -> %s\n", @{$_}[ 0 .. 2 ];
-    }
-
+    printf "%s\n", $self->stringify(@_);
     return 1;
 }
 
