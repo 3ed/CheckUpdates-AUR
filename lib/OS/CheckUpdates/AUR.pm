@@ -449,10 +449,9 @@ sub refresh {
 
     ### refresh() getting multiinfo()
 
-    my @remotePkgs = $self
-        ->multiinfo( $self->requested('sorted_keys') )
-        ->{'results'}
-        ->@*;
+    my @remotePkgs = $self->multiinfo(
+        $self->requested('sorted_keys')
+    );
 
     my $localPkgs = $self->requested('hash_copy');
 
@@ -539,7 +538,9 @@ sub vercmp {
 }
 
 sub multiinfo {
-    my $self = shift;
+    my ($self, @pkgnames) = @_;
+    my $pkgnames_spliced_by = 200;
+    my @results = ();
     my $lwp  = WWW::AUR::UserAgent->new(
         'timeout' => 10,
         'agent'   => sprintf(
@@ -549,16 +550,36 @@ sub multiinfo {
         'protocols_allowed' => ['https'],
     );
 
-    my $response = $lwp->get( rpc_uri( 'multiinfo', @_ ) );
+    while ($#pkgnames >= 0) {
+        my $response = $lwp->get(
+            rpc_uri(
+                'multiinfo',
+                splice(
+                    @pkgnames,
+                    0,
+                    $pkgnames_spliced_by
+                )
+            )
+        );
 
-    $response->is_success
-      and return decode_json( $response->decoded_content );
+        if ($response->is_success) {
 
-    ### LWP decoded: $response->decoded_content
+            push @results => decode_json(
+                    $response->decoded_content
+                )->{'results'}->@*; # TODO Aur status and version check
 
-    $! = 1;
-    confess __PACKAGE__, '::multiinfo(): LWP status error: '
-          . $response->status_line;
+        } else {
+
+            ### LWP decoded: $response->decoded_content
+
+            $! = 1;
+            confess __PACKAGE__, '::multiinfo(): ',
+                    'LWP status error: ',
+                    $response->status_line;
+        }
+    }
+
+    return @results
 }
 
 1;
