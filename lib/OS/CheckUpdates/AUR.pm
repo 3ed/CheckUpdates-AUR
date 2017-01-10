@@ -373,6 +373,77 @@ sub get_hash($self) {
 }
 1;
 
+package OS::CheckUpdates::AUR::multiinfo;
+use 5.022;
+use feature qw(signatures postderef);
+no warnings qw(experimental::signatures experimental::postderef);
+
+use if $ENV{CHECKUPDATES_DEBUG}, 'Smart::Comments';
+
+use Carp;
+use WWW::AUR::URI qw(rpc_uri);
+use WWW::AUR::UserAgent;
+use JSON;
+
+sub new ($class) {
+    return bless {}, ref($class) || $class;
+}
+
+sub UserAgent ($self) {
+    return state $UserAgent = WWW::AUR::UserAgent->new(
+        'timeout' => 10,
+        'agent'   => sprintf(
+            'WWW::AUR/v%s (OS::CheckUpdates::AUR/v%s)',
+            $WWW::AUR::VERSION, $OS::CheckUpdates::AURVERSION,
+        ),
+        'protocols_allowed' => ['https'],
+    );
+}
+
+sub get ($self, @pkgnames) {
+    return $self->multiinfo_spliced_by(200, @pkgnames)
+}
+
+sub multiinfo_spliced_by($self, $spliced_by, @pkgnames) {
+    my @results;
+
+    push @results => $self->multiinfo_content(
+        splice(
+            @pkgnames,
+            0,
+            $spliced_by
+        )
+    ) while ($#pkgnames >= 0);
+
+    return @results;
+}
+
+sub multiinfo_content ($self, @pkgnames) {
+    return decode_json (
+        $self->multiinfo_raw_response(@pkgnames)
+    )
+    ->{'results'}
+    ->@*
+}
+
+sub multiinfo_raw_response ($self, @pkgnames) {
+    my $response = $self->UserAgent->get(
+        rpc_uri('multiinfo', @pkgnames)
+    );
+
+    $response->is_success
+        and return $response->decoded_content;
+
+    ### LWP decoded: $response->decoded_content
+
+    $! = 1;
+    confess __PACKAGE__, '::multiinfo_raw_response(): ',
+            'LWP status error: ',
+            $response->status_line;
+}
+
+1;
+
 package OS::CheckUpdates::AUR;
 
 use 5.022;
@@ -382,9 +453,6 @@ no warnings 'experimental::smartmatch';
 use if $ENV{CHECKUPDATES_DEBUG}, 'Smart::Comments';
 
 use Carp;
-use WWW::AUR::URI qw(rpc_uri);
-use WWW::AUR::UserAgent;
-use JSON;
 
 use parent -norequire, q(OS::CheckUpdates::AUR::Capture);
 
@@ -427,6 +495,10 @@ sub requested {
     return $self->{'requested'}->(@args)
 }
 
+sub multiinfo {
+    return state $multiinfo = OS::CheckUpdates::AUR::multiinfo->new();
+}
+
 #-------------------------------------------------------------------------------
 # Methods
 #-------------------------------------------------------------------------------
@@ -449,7 +521,7 @@ sub refresh {
 
     ### refresh() getting multiinfo()
 
-    my @remotePkgs = $self->multiinfo(
+    my @remotePkgs = $self->multiinfo->get(
         $self->requested('sorted_keys')
     );
 
@@ -535,51 +607,6 @@ sub vercmp {
     $! = 1;
     confess __PACKAGE__, '::vercmp(): '.
             'command generate unproper output';            # <--
-}
-
-sub multiinfo {
-    my ($self, @pkgnames) = @_;
-    my $pkgnames_spliced_by = 200;
-    my @results = ();
-    my $lwp  = WWW::AUR::UserAgent->new(
-        'timeout' => 10,
-        'agent'   => sprintf(
-            'WWW::AUR/v%s (OS::CheckUpdates::AUR/v%s)',
-            $WWW::AUR::VERSION, $VERSION,
-        ),
-        'protocols_allowed' => ['https'],
-    );
-
-    while ($#pkgnames >= 0) {
-        my $response = $lwp->get(
-            rpc_uri(
-                'multiinfo',
-                splice(
-                    @pkgnames,
-                    0,
-                    $pkgnames_spliced_by
-                )
-            )
-        );
-
-        if ($response->is_success) {
-
-            push @results => decode_json(
-                    $response->decoded_content
-                )->{'results'}->@*; # TODO Aur status and version check
-
-        } else {
-
-            ### LWP decoded: $response->decoded_content
-
-            $! = 1;
-            confess __PACKAGE__, '::multiinfo(): ',
-                    'LWP status error: ',
-                    $response->status_line;
-        }
-    }
-
-    return @results
 }
 
 1;
