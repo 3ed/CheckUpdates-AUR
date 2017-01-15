@@ -19,7 +19,11 @@ provides:
   OS::CheckUpdates::AUR:
     file: lib/OS/CheckUpdates/AUR.pm
     version: '0.05'
-  OS::CheckUpdates::AUR::Capture:
+  OS::CheckUpdates::AUR::Base::Capture:
+    file: lib/OS/CheckUpdates/AUR.pm
+  OS::CheckUpdates::AUR::Base::Filter:
+    file: lib/OS/CheckUpdates/AUR.pm
+  OS::CheckUpdates::AUR::Base::ParseArgs:
     file: lib/OS/CheckUpdates/AUR.pm
   OS::CheckUpdates::AUR::Filter::Pacman:
     file: lib/OS/CheckUpdates/AUR.pm
@@ -27,12 +31,15 @@ provides:
     file: lib/OS/CheckUpdates/AUR.pm
   OS::CheckUpdates::AUR::Stats:
     file: lib/OS/CheckUpdates/AUR.pm
+  OS::CheckUpdates::AUR::multiinfo:
+    file: lib/OS/CheckUpdates/AUR.pm
 requires:
   Capture::Tiny: '0'
   JSON: '0'
+  LWP: '0'
+  LWP::Protocol::https: '0'
   Path::Tiny: '0'
   Try::Tiny: '0'
-  WWW::AUR: '0.19'
 resources:
   license: http://opensource.org/licenses/artistic-license-2.0.php
 version: '0.05'

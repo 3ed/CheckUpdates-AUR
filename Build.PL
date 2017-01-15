@@ -19,11 +19,12 @@ my $builder = Module::Build::Pluggable->new(
         'Test::More' => 0,
     },
     requires => {
-        'WWW::AUR'              => 0.19,
         'JSON'                  => 0,
         'Try::Tiny'             => 0,
         'Capture::Tiny'         => 0,
         'Path::Tiny'            => 0,
+        'LWP'                   => 0,
+        'LWP::Protocol::https'  => 0,
     },
     add_to_cleanup       => [ 'OS-CheckUpdates-AUR-*' ],
     add_to_manifest_skip => [ '.git' ],

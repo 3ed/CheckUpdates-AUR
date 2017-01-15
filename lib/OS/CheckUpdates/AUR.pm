@@ -46,7 +46,7 @@ sub updates (
 
 1;
 
-package OS::CheckUpdates::AUR::Capture;
+package OS::CheckUpdates::AUR::Base::Capture;
 use 5.022;
 
 use Capture::Tiny qw( capture );
@@ -80,50 +80,56 @@ no warnings qw(experimental::signatures experimental::postderef);
 
 use Carp;
 
-sub new (
-    $class,
-    $output = (confess(__PACKAGE__, ': new without pacman output'))
+use parent -norequire, q(OS::CheckUpdates::AUR::Base::Filter);
+
+sub filter_default ($self, @pass) {
+    return $self->filter_columns(@pass)
+};
+
+sub filter_columns ($self, $subject, %column) {
+    return
+        if length $subject < 5;
+
+    $column{'name'} //= 0;
+    $column{'ver'}  //= 1;
+
+    $self->{'append_on'}->{$_->[0]} = $_->[1]
+        for map {[
+            ( split q{ } )[ $column{'name'}, $column{'ver'} ]
+        ]} split /\n/, $subject;
+
+    return 1;
+}
+
+
+1;
+
+package OS::CheckUpdates::AUR::Base::Filter;
+use 5.022;
+
+use feature qw(signatures postderef);
+no warnings qw(experimental::signatures experimental::postderef);
+
+use Carp;
+
+sub new($class, $append_on) {
+    return bless({'append_on' => $append_on}, $class);
+}
+
+sub filter (
+    $self,
+    $subject,
+    $filter_name = ('default'),
+    $filter_opts = ({})
 ) {
-    return bless { 'output' => $output }, ref($class) || $class
-}
-
-sub append_on ($self, $ref) {
-    $self->{'filtered'} = $ref;
-    return $self;
-}
-
-sub filter ($self, $name, $opts) {
-    if (my $method = $self->can('filter_'.$name)) {
-        $self->$method($opts->%*);
+    if (my $method = $self->can('filter_'.$filter_name)) {
+        $self->$method($subject, $filter_opts->%*);
     } else {
-        confess __PACKAGE__, '->filter(): ',
-                'pacman filter "', $name, '" do not recognized'
+        confess __PACKAGE__, '->(): ',
+                'not existed filter has been used "', $filter_name, '"';
     };
 
-    return $self;
-}
-
-sub filter_columns ($self, %filter) {
-    return {}
-        if length $self->get_output < 5;
-
-    $filter{'name'} //= 0;
-    $filter{'ver'}  //= 1;
-
-    $self->{'filtered'}->{$_->[0]} = $_->[1]
-        for map {[
-            ( split q{ } )[ $filter{'name'}, $filter{'ver'} ]
-        ]} split /\n/, $self->get_output;
-
-    return $self;
-}
-
-sub get_output ($self) {
-    return $self->{'output'}
-}
-
-sub get ($self) {
-    return $self->{'filtered'};
+    return 1;
 }
 
 1;
@@ -164,7 +170,7 @@ sub parser($class, @Args) {
 sub _parser_add($self, @Args) {
     confess __PACKAGE__, '->parser(): ',
             'Should be even arguments, we got odd...'
-        unless $#Args % 2;
+        unless ($#Args > 0 && $#Args % 2);
 
     $self->{'Args'}->@* = @Args;
 
@@ -234,8 +240,16 @@ use Carp;
 use Path::Tiny qw( path );
 use parent -norequire, qw(
     OS::CheckUpdates::AUR::Base::ParseArgs
-    OS::CheckUpdates::AUR::Capture
+    OS::CheckUpdates::AUR::Base::Capture
 );
+
+sub filter_pacman($self, @opts) {
+    state $FilterOutput = OS::CheckUpdates::AUR::Filter::Pacman->new(
+        \$self->{'parsed'}->%*
+    );
+
+    return $FilterOutput->filter(@opts);
+}
 
 #-------------------------------------------------------------------------------
 # parse_* // parse_something == ->parser('something' => [@args])
@@ -332,10 +346,7 @@ sub parse_output(
     $filter_name = "columns",
     $filter_opts = {}
 ) {
-    OS::CheckUpdates::AUR::Filter::Pacman
-        ->new($output)
-        ->append_on( \$self->{'parsed'}->%* )
-        ->filter($filter_name, $filter_opts);
+    $self->filter_pacman($output, $filter_name, $filter_opts);
 
     return $self;
 }
@@ -381,20 +392,22 @@ no warnings qw(experimental::signatures experimental::postderef);
 use if $ENV{CHECKUPDATES_DEBUG}, 'Smart::Comments';
 
 use Carp;
-use WWW::AUR::URI qw(rpc_uri);
-use WWW::AUR::UserAgent;
+use LWP::UserAgent;
 use JSON;
+use URI;
 
 sub new ($class) {
-    return bless {}, ref($class) || $class;
+    return bless {
+        rpc => { version => 5 }
+    }, ref($class) || $class;
 }
 
 sub UserAgent ($self) {
-    return state $UserAgent = WWW::AUR::UserAgent->new(
+    return state $UserAgent = LWP::UserAgent->new(
         'timeout' => 10,
         'agent'   => sprintf(
-            'WWW::AUR/v%s (OS::CheckUpdates::AUR/v%s)',
-            $WWW::AUR::VERSION, $OS::CheckUpdates::AURVERSION,
+            'OS::CheckUpdates::AUR/v%s',
+            $OS::CheckUpdates::AURVERSION,
         ),
         'protocols_allowed' => ['https'],
     );
@@ -407,7 +420,7 @@ sub get ($self, @pkgnames) {
 sub multiinfo_spliced_by($self, $spliced_by, @pkgnames) {
     my @results;
 
-    push @results => $self->multiinfo_content(
+    push @results => $self->multiinfo(
         splice(
             @pkgnames,
             0,
@@ -418,28 +431,46 @@ sub multiinfo_spliced_by($self, $spliced_by, @pkgnames) {
     return @results;
 }
 
-sub multiinfo_content ($self, @pkgnames) {
-    return decode_json (
-        $self->multiinfo_raw_response(@pkgnames)
-    )
-    ->{'results'}
-    ->@*
-}
-
-sub multiinfo_raw_response ($self, @pkgnames) {
+sub multiinfo ($self, @pkgnames) {
     my $response = $self->UserAgent->get(
-        rpc_uri('multiinfo', @pkgnames)
+        $self->rpc_uri_multiinfo(@pkgnames)
     );
 
-    $response->is_success
-        and return $response->decoded_content;
+    if ($response->is_success) {
+        my $content = decode_json($response->decoded_content);
+
+        confess __PACKAGE__, '->multiinfo(): ',
+                'rpc version mismach'
+            unless $content->{'version'} eq $self->{'rpc'}->{'version'};
+
+        confess __PACKAGE__, '->multiinfo(): ',
+                'aur response with error: ',
+                $content->{'error'}
+            if $content->{'type'} eq "error";
+
+        return $content->{'results'}->@*
+    }
 
     ### LWP decoded: $response->decoded_content
 
     $! = 1;
-    confess __PACKAGE__, '::multiinfo_raw_response(): ',
+    confess __PACKAGE__, '->multiinfo(): ',
             'LWP status error: ',
             $response->status_line;
+}
+
+sub rpc_uri_multiinfo ($self, @pkgnames) {
+    state $uri = URI->new(
+        'https://aur.archlinux.org/rpc/'
+    );
+
+    $uri->query_form(
+        'v'     => $self->{'rpc'}->{'version'},
+        'type'  => 'info',
+        'arg[]' => \@pkgnames
+    );
+
+    return $uri
 }
 
 1;
@@ -454,7 +485,7 @@ use if $ENV{CHECKUPDATES_DEBUG}, 'Smart::Comments';
 
 use Carp;
 
-use parent -norequire, q(OS::CheckUpdates::AUR::Capture);
+use parent -norequire, q(OS::CheckUpdates::AUR::Base::Capture);
 
 our $VERSION = '0.05';
 

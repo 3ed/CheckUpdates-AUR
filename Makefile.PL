@@ -5,18 +5,19 @@ WriteMakefile
   'EXE_FILES' => [
                    'bin/checkupdates-aur'
                  ],
-  'INSTALLDIRS' => 'site',
-  'PREREQ_PM' => {
-                   'Module::Build::Pluggable::AuthorTests' => '0.01',
-                   'Test::More' => 0,
-                   'WWW::AUR' => '0.19',
-                   'Capture::Tiny' => 0,
-                   'Path::Tiny' => 0,
-                   'Try::Tiny' => 0,
-                   'JSON' => 0
-                 },
-  'PL_FILES' => {},
   'NAME' => 'OS::CheckUpdates::AUR',
-  'VERSION_FROM' => 'lib/OS/CheckUpdates/AUR.pm'
+  'PREREQ_PM' => {
+                   'Test::More' => 0,
+                   'LWP' => 0,
+                   'LWP::Protocol::https' => 0,
+                   'Capture::Tiny' => 0,
+                   'Try::Tiny' => 0,
+                   'Module::Build::Pluggable::AuthorTests' => '0.01',
+                   'JSON' => 0,
+                   'Path::Tiny' => 0
+                 },
+  'INSTALLDIRS' => 'site',
+  'VERSION_FROM' => 'lib/OS/CheckUpdates/AUR.pm',
+  'PL_FILES' => {}
 )
 ;

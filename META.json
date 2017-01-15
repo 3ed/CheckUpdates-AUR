@@ -30,9 +30,10 @@
          "requires" : {
             "Capture::Tiny" : "0",
             "JSON" : "0",
+            "LWP" : "0",
+            "LWP::Protocol::https" : "0",
             "Path::Tiny" : "0",
-            "Try::Tiny" : "0",
-            "WWW::AUR" : "0.19"
+            "Try::Tiny" : "0"
          }
       }
    },
@@ -41,7 +42,13 @@
          "file" : "lib/OS/CheckUpdates/AUR.pm",
          "version" : "0.05"
       },
-      "OS::CheckUpdates::AUR::Capture" : {
+      "OS::CheckUpdates::AUR::Base::Capture" : {
+         "file" : "lib/OS/CheckUpdates/AUR.pm"
+      },
+      "OS::CheckUpdates::AUR::Base::Filter" : {
+         "file" : "lib/OS/CheckUpdates/AUR.pm"
+      },
+      "OS::CheckUpdates::AUR::Base::ParseArgs" : {
          "file" : "lib/OS/CheckUpdates/AUR.pm"
       },
       "OS::CheckUpdates::AUR::Filter::Pacman" : {
@@ -51,6 +58,9 @@
          "file" : "lib/OS/CheckUpdates/AUR.pm"
       },
       "OS::CheckUpdates::AUR::Stats" : {
+         "file" : "lib/OS/CheckUpdates/AUR.pm"
+      },
+      "OS::CheckUpdates::AUR::multiinfo" : {
          "file" : "lib/OS/CheckUpdates/AUR.pm"
       }
    },
