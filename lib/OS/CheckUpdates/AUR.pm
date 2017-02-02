@@ -1,480 +1,3 @@
-package OS::CheckUpdates::AUR::Stats;
-use 5.022;
-use feature qw(signatures postderef);
-no warnings qw(experimental::signatures experimental::postderef);
-
-sub _new ($class) {
-    return bless {}, ref($class) || $class
-}
-
-sub _clear ($self) {
-    $self->%* = ();
-    return $self;
-}
-
-sub requested (
-    $self,
-    $value = (return $self->{requested} //=  0)
-) {
-    $self->{requested} = $value;
-    return $self
-}
-
-sub retrived (
-    $self,
-    $value = (return $self->{retrived}  //=  0)
-) {
-    $self->{retrived} = $value;
-    return $self
-}
-
-sub orphaned (
-    $self,
-    $value = (return $self->{orphaned}  //= -1)
-) {
-    $self->{orphaned} = $value;
-    return $self
-}
-
-sub updates (
-    $self,
-    $value = (return $self->{updates}   //= -1)
-) {
-    $self->{updates} = $value;
-    return $self
-}
-
-1;
-
-package OS::CheckUpdates::AUR::Base::Capture;
-use 5.022;
-
-use Capture::Tiny qw( capture );
-use Carp;
-
-#---------------------------------------------
-# Any command output
-#---------------------------------------------
-
-sub capture_cmd {
-    my ($self, @opts) = @_;
-
-    my ($stdout, $stderr, $exit) = capture {
-        local $ENV{LC_ALL} = 'C';
-        system(@opts);
-    };
-
-    confess $opts[0], "(stderr): ", $stderr
-        unless $exit == 0;
-
-    chomp  $stdout;
-    return $stdout;
-}
-
-1;
-
-package OS::CheckUpdates::AUR::Filter::Pacman;
-use 5.022;
-use feature qw(signatures postderef);
-no warnings qw(experimental::signatures experimental::postderef);
-
-use Carp;
-
-use parent -norequire, q(OS::CheckUpdates::AUR::Base::Filter);
-
-sub filter_default ($self, @pass) {
-    return $self->filter_columns(@pass)
-};
-
-sub filter_columns ($self, $subject, %column) {
-    return
-        if length $subject < 5;
-
-    $column{'name'} //= 0;
-    $column{'ver'}  //= 1;
-
-    $self->{'append_on'}->{$_->[0]} = $_->[1]
-        for map {[
-            ( split q{ } )[ $column{'name'}, $column{'ver'} ]
-        ]} split /\n/, $subject;
-
-    return 1;
-}
-
-
-1;
-
-package OS::CheckUpdates::AUR::Base::Filter;
-use 5.022;
-
-use feature qw(signatures postderef);
-no warnings qw(experimental::signatures experimental::postderef);
-
-use Carp;
-
-sub new($class, $append_on) {
-    return bless({'append_on' => $append_on}, $class);
-}
-
-sub filter (
-    $self,
-    $subject,
-    $filter_name = ('default'),
-    $filter_opts = ({})
-) {
-    if (my $method = $self->can('filter_'.$filter_name)) {
-        $self->$method($subject, $filter_opts->%*);
-    } else {
-        confess __PACKAGE__, '->(): ',
-                'not existed filter has been used "', $filter_name, '"';
-    };
-
-    return 1;
-}
-
-1;
-
-package OS::CheckUpdates::AUR::Base::ParseArgs;
-use 5.022;
-use feature qw(signatures postderef);
-no warnings qw(experimental::signatures experimental::postderef);
-
-use Carp;
-
-# new(packages|pacman|files => [])
-#
-# COMMAND  => [ARGS,                         OPTIONAL_OPTS                     ]
-# ------------------------------------------------------------------------------
-# packages => [qw/name1 ver1/, 'name2', 'ver2', 'name3' => 'ver3'              ]
-# pacman   => [['-Qm'],             columns  => { name => 0, ver => 1 }        ]
-# pacman   => [['-Sl', 'lan'],      columns  => { name => 1, ver => 2 }        ]
-# output   => ['output'             columns  => { name => 1, ver => 2 }        ]
-# fh       => [\$FH,                columns  => { name => 0, ver => 1 }        ]
-# files    => ['folder',                     regexp => '...[^-]*.pkg.tar.xz$' }]
-# files    => [['folder1', 'folder2'],       regexp => '...[^-]*.pkg.tar.xz$' }]
-
-
-# sub parser($class, @Args) {
-#     return bless({}, $class)
-#         ->_parser_add(@Args)
-#         ->_parser_make
-#         ->_parser_sub;
-# }
-
-sub parser($class, @Args) {
-    return bless({}, $class)
-        ->_parser_add(@Args)
-        ->_parser_sub;
-}
-
-sub _parser_add($self, @Args) {
-    confess __PACKAGE__, '->parser(): ',
-            'Should be even arguments, we got odd...'
-        unless ($#Args > 0 && $#Args % 2);
-
-    $self->{'Args'}->@* = @Args;
-
-    return $self
-}
-
-sub _parser_sub($self) {
-    return sub ($opt = "hash") {
-        confess '(', __PACKAGE__, '->parser(...))->( ->this<- ): ',
-                'value must be a string'
-            unless ref $opt eq "";
-
-        if(not exists  $self->{'parsed'} or $opt eq "refresh") {
-            $opt = "hash" if $opt eq "refresh"; # exception
-            $self->{'parsed'}->%* = (); # ???
-            $self->_parse_make;
-        }
-
-        return $self->_get_make($opt);
-    }
-}
-
-# reserved: get_*
-sub _get_make($self, $opt) {
-    confess __PACKAGE__, '->parser(): count value must be a string'
-        unless ref $opt eq "";
-
-    if (my $method = $self->can('get_'.$opt)) {
-        return $self->$method;
-    } else {
-        confess __PACKAGE__, '->parser(): unknown counter';
-    }
-}
-
-# reserved: parse_*
-sub _parse_make($self) {
-    my $i = 0;
-    while ($self->{Args}->@[$i]) {
-        confess __PACKAGE__, '->parser(): ',
-                'type is ', lc ref $self->{Args}->@[$i],
-                ' but should be string: ->here<- => [...]'
-            if ref $self->{Args}->@[$i];
-
-        if (
-            # ->...<- => [['...', ''...'], ... => ...]
-            my $method = $self->can('parse_' . $self->{Args}->@[$i++])
-        ) {
-            # ... => ->[['...', ''...'], ... => ...]<-
-            $self->$method($self->{Args}->@[$i++]->@*);
-        } else {
-            confess __PACKAGE__, '->parser(): ',
-                    'unknown option ->"', $self->{Args}->@[--$i], '"<- => [...]';
-                    # ^^ WARNING: if you delete confess ^^ you have minus there
-        }
-    }
-
-    return $self
-}
-1;
-
-package OS::CheckUpdates::AUR::ParseArgs;
-use 5.022;
-use feature qw(signatures postderef);
-no warnings qw(experimental::signatures experimental::postderef);
-
-use Carp;
-use Path::Tiny qw( path );
-use parent -norequire, qw(
-    OS::CheckUpdates::AUR::Base::ParseArgs
-    OS::CheckUpdates::AUR::Base::Capture
-);
-
-sub filter_pacman($self, @opts) {
-    state $FilterOutput = OS::CheckUpdates::AUR::Filter::Pacman->new(
-        \$self->{'parsed'}->%*
-    );
-
-    return $FilterOutput->filter(@opts);
-}
-
-#-------------------------------------------------------------------------------
-# parse_* // parse_something == ->parser('something' => [@args])
-#-------------------------------------------------------------------------------
-
-sub parse_files($self, $dirs, %opts) {
-    $dirs = [$dirs] if ref $dirs ne 'ARRAY'; # any to array
-
-
-    $opts{'regexp'}          //= '(?<name>.*)-(?<ver>[^-]*-[^-]*)-[^-]*\.pkg\.tar\.xz';
-    $opts{'recursive'}       //= 0;
-    $opts{'follow_symlinks'} //= 0;
-
-
-    my $r = qr/$opts{'regexp'}/sn
-        or confess __PACKAGE__, '->parser(): ',
-                   'bad regexp: ',
-                   'files => [[...], regexp => ->here<-]';
-
-
-    dir: for (my $i=0; $i <= $dirs->$#*; $i++) {
-
-        # confess if not string
-        confess __PACKAGE__, '->parser(): ',
-                'type is ', lc ref $dirs->@[$i], ' ',
-                'but should be string: ',
-                'files => [->here<-, ...]'
-            if ref $dirs->@[$i] ne '';
-
-        # initiate Path::Tiny
-        my $dir = path($dirs->@[$i]);
-
-        # confess if is not dir
-        confess __PACKAGE__, '->parser(): ',
-                'path is not a folder: ',
-                'files => [->here<-, ...]'
-            unless $dir->is_dir;
-
-        # scour through dir(s)
-        $dir->visit(sub{
-            # if is file and not link and regexp pass
-            $_->is_file
-                and $_->basename =~ m/$r/
-                and defined $+{name}
-                and defined $+{ver}
-                and $self->{'parsed'}->{$+{name}} = $+{ver};
-        },
-        {
-            recurse         => $opts{'recursive'},
-            follow_symlinks => $opts{'follow_symlinks'},
-        });
-    }
-
-
-    return $self;
-}
-
-sub parse_fh(
-    $self,
-    $fh,
-    @filter
-) {
-    confess __PACKAGE__, '->parser(): ',
-            'type is ', lc ref $fh, ' ',
-            'but should be fh: ',
-            'fh => [->here<-, ...]'
-        unless ref $fh eq 'GLOB';
-
-    # read fh then pass to parse_output
-    $self->parse_output(
-        join("", <$fh>),
-        @filter
-    );
-
-    return $self;
-}
-
-sub parse_pacman(
-    $self,
-    $pacman_opts,
-    @filter
-) {
-    $self->parse_output(
-        $self->capture_cmd('pacman', $pacman_opts->@*),
-        @filter
-    );
-
-    return $self;
-}
-
-sub parse_output(
-    $self,
-    $output,
-    $filter_name = "columns",
-    $filter_opts = {}
-) {
-    $self->filter_pacman($output, $filter_name, $filter_opts);
-
-    return $self;
-}
-
-sub parse_packages(
-    $self,
-    %packages
-) {
-    $self->{'parsed'}->@{keys %packages} = values %packages;
-    return $self;
-}
-
-#-------------------------------------------------------------------------------
-# get_* // get_something == ->('something')
-#-------------------------------------------------------------------------------
-
-sub get_count($self) {
-    return scalar keys $self->{'parsed'}->%*;
-}
-
-sub get_keys($self) {
-    return keys $self->{'parsed'}->%*
-}
-
-sub get_sorted_keys($self) {
-    return sort keys $self->{'parsed'}->%*
-}
-
-sub get_hash_copy($self) {
-    return {$self->{'parsed'}->%*}
-}
-
-sub get_hash($self) {
-    return \$self->{'parsed'}->%*
-}
-1;
-
-package OS::CheckUpdates::AUR::multiinfo;
-use 5.022;
-use feature qw(signatures postderef);
-no warnings qw(experimental::signatures experimental::postderef);
-
-use if $ENV{CHECKUPDATES_DEBUG}, 'Smart::Comments';
-
-use Carp;
-use LWP::UserAgent;
-use JSON;
-use URI;
-
-sub new ($class) {
-    return bless {
-        rpc => { version => 5 }
-    }, ref($class) || $class;
-}
-
-sub UserAgent ($self) {
-    return state $UserAgent = LWP::UserAgent->new(
-        'timeout' => 10,
-        'agent'   => sprintf(
-            'OS::CheckUpdates::AUR/v%s',
-            $OS::CheckUpdates::AURVERSION,
-        ),
-        'protocols_allowed' => ['https'],
-    );
-}
-
-sub get ($self, @pkgnames) {
-    return $self->multiinfo_spliced_by(200, @pkgnames)
-}
-
-sub multiinfo_spliced_by($self, $spliced_by, @pkgnames) {
-    my @results;
-
-    push @results => $self->multiinfo(
-        splice(
-            @pkgnames,
-            0,
-            $spliced_by
-        )
-    ) while ($#pkgnames >= 0);
-
-    return @results;
-}
-
-sub multiinfo ($self, @pkgnames) {
-    my $response = $self->UserAgent->get(
-        $self->rpc_uri_multiinfo(@pkgnames)
-    );
-
-    if ($response->is_success) {
-        my $content = decode_json($response->decoded_content);
-
-        confess __PACKAGE__, '->multiinfo(): ',
-                'rpc version mismach'
-            unless $content->{'version'} eq $self->{'rpc'}->{'version'};
-
-        confess __PACKAGE__, '->multiinfo(): ',
-                'aur response with error: ',
-                $content->{'error'}
-            if $content->{'type'} eq "error";
-
-        return $content->{'results'}->@*
-    }
-
-    ### LWP decoded: $response->decoded_content
-
-    $! = 1;
-    confess __PACKAGE__, '->multiinfo(): ',
-            'LWP status error: ',
-            $response->status_line;
-}
-
-sub rpc_uri_multiinfo ($self, @pkgnames) {
-    state $uri = URI->new(
-        'https://aur.archlinux.org/rpc/'
-    );
-
-    $uri->query_form(
-        'v'     => $self->{'rpc'}->{'version'},
-        'type'  => 'info',
-        'arg[]' => \@pkgnames
-    );
-
-    return $uri
-}
-
-1;
-
 package OS::CheckUpdates::AUR;
 
 use 5.022;
@@ -485,7 +8,11 @@ use if $ENV{CHECKUPDATES_DEBUG}, 'Smart::Comments';
 
 use Carp;
 
-use parent -norequire, q(OS::CheckUpdates::AUR::Base::Capture);
+use parent q(OS::CheckUpdates::AUR::Base::Capture);
+
+use OS::CheckUpdates::AUR::ParseArgs;
+use OS::CheckUpdates::AUR::Stats;
+use OS::CheckUpdates::AUR::multiinfo;
 
 our $VERSION = '0.05';
 
@@ -620,26 +147,6 @@ sub orphans {
       : $#{ $self->{'orphans'} } + 1;
 }
 
-sub vercmp {
-    my ( $self, $a, $b ) = @_;
-
-    unless (defined $a and defined $b) {
-        $! = 1; # exit code
-        confess __PACKAGE__, '->vercmp(): '.
-                'one or more versions are empty';          # <--
-    };
-
-    return 0  if $a eq $b;  # we have here equal
-
-    my $vercmp = $self->capture_cmd('vercmp', $a, $b);
-
-    return $vercmp  if $vercmp =~ /^(-1|0|1)$/osm;
-
-    $! = 1;
-    confess __PACKAGE__, '::vercmp(): '.
-            'command generate unproper output';            # <--
-}
-
 1;
 
 __END__
@@ -670,11 +177,83 @@ Example of code:
 
 =head1 SUBROUTINES/METHODS
 
-=head2 new()
+=head2 new(command => [arguments, optional], ...)
 
-New...
+ EXAMPLES:
 
-=head2 new_lazy()
+ COMMAND  => [ARGS,                         OPTIONAL                          ]
+ ------------------------------------------------------------------------------
+ packages => [qw/name1 ver1/, 'name2', 'ver2', 'name3' => 'ver3'              ]
+ pacman   => [['-Qm'],                      columns => { name => 0, ver => 1 }]
+ pacman   => [['-Sl', 'lan'],               columns => { name => 1, ver => 2 }]
+ output   => ['output'                      columns => { name => 1, ver => 2 }]
+ fh       => [\$FH,                         columns => { name => 0, ver => 1 }]
+ files    => ['folder',                     regexp  => '...[^-]*.pkg.tar.xz$' ]
+ files    => [['folder1', 'folder2'],       regexp  => '...[^-]*.pkg.tar.xz$' ]
+
+=head3 packages
+
+ pairs: name => version
+
+=head3 pacman
+
+ pacman => [Options, Filter]
+
+=head4 Options:
+
+ array of pacman arguments
+
+ eg. pacman -Q -m is equal to pacman => [['-Q', '-m']]
+
+=head4 Filter (optional):
+
+ specific filter that will be used to retrive informations from text
+
+ default is: columns => { name => 0, ver => 1 }
+
+ Available filters:
+   columns
+     - name - number of column with name
+     - ver  - number of column with version
+
+=head3 output
+
+ string with pacman output instead of pacman arguments
+ 
+ everything else the same as in section: new -> pacman
+
+ eg: output => ['output here', Filter]
+
+=head3 fh
+
+ same as output but from fh (eg. \*STDIN)
+
+ for more info look at section: new -> pacman
+
+ eg: fh => [$fh, filter]
+
+=head3 files
+
+ read package list from folder(s) file list(s)
+
+ eg: files => ['folder', Filter]
+ eg: files => [['folder', ...], Filter]
+
+=head4 Filter (optional):
+
+ regexp
+   Must be named match with name and ver, default:
+   '(?<name>.*)-(?<ver>[^-]*-[^-]*)-[^-]*\.pkg\.tar\.xz'
+
+ recursive
+   search deeper? (bool)
+   default: 0
+
+ follow_symlinks
+   follow symlinks? (bool)
+   default: 0
+
+=head2 new_lazy(...)
 
 Same as new() but tasks are performed only when needed.
 
