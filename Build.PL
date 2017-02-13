@@ -25,6 +25,7 @@ my $builder = Module::Build::Pluggable->new(
         'Path::Tiny'            => 0,
         'LWP'                   => 0,
         'LWP::Protocol::https'  => 0,
+        'Getopt::Long'          => 0,
     },
     add_to_cleanup       => [ 'OS-CheckUpdates-AUR-*' ],
     add_to_manifest_skip => [ '.git' ],

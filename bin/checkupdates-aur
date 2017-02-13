@@ -4,34 +4,21 @@ use 5.022;
 no warnings 'experimental::smartmatch';
 
 use OS::CheckUpdates::AUR;
+use OS::CheckUpdates::AUR::GetOpts;
 use Try::Tiny;
-
+use Data::Dump;
 our $VERSION = '0.05';
-my  %list;
 
-my @Args = (
-    pacman => [
-        ['-Qm'], columns => {name => 0, ver => 1}
-    ]
-);
-
-if ( '-h' ~~ @ARGV or '--help' ~~ @ARGV ) {
-    say usage();
-    exit 0;
-}
-elsif ( '-' ~~ @ARGV or '--stdin' ~~ @ARGV ) {
-    @Args = (
-        fh => [
-            \*STDIN, columns => {name => 0, ver => 1}
-        ]
-    );
-}
+my $opts = OS::CheckUpdates::AUR::GetOpts->new(@ARGV);
 
 try {
-    my $cua = OS::CheckUpdates::AUR->new(@Args);
+    my $cua = OS::CheckUpdates::AUR->new(
+        $opts->()->{'switch'}->@*
+    );
+
     $cua->print();
 
-    if ( '-o' ~~ @ARGV or '--orphans' ~~ @ARGV ) {
+    if ( $opts->()->{'other'}->{'orphans'} ) {
         foreach ( $cua->orphans() ) {
             say {*STDERR} ':: Orphan: ', $_;
         }
@@ -44,31 +31,6 @@ catch {
 
     exit $!;
 };
-
-sub usage {
-    return <<'EOF';
-USAGE:
-    checkupdates-aur
-    checkupdates-aur (-o|--orphans|-|--stdin)
-    checkupdates-aur (-h|--help)
-
-OPTIONS:
-    -o, --orphans
-        Show packages that can't be found
-        on AUR.
-
-    -, --stdin
-        You can specify packages to check.
-        $ checkupdates-aur   #is equal to:
-        $ pacman -Qm | checkupdates-aur -
-
-    -h, --help
-        Display this help and exit.
-
-MORE INFO:
-    See man page...
-EOF
-}
 
 __END__
 
