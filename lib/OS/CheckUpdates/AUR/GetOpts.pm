@@ -3,6 +3,7 @@ use 5.022;
 use feature qw(signatures postderef);
 no warnings qw(experimental::signatures experimental::postderef);
 
+use Carp qw(confess);
 use Getopt::Long qw(
     GetOptionsFromArray
     :config
@@ -10,23 +11,37 @@ use Getopt::Long qw(
         no_ignore_case
 );
 
-sub new ($class, @argv) {
+
+sub new ($class, %opts) {
     my $self = bless {}, $class;
 
-    GetOptionsFromArray(\@argv, \$self->{'opts'}->%*,
+    foreach (qw(parse argv)) {
+        exists $opts{$_} or
+            confess __PACKAGE__,
+                    ': "', $_, '" is required: ',
+                    '->new(->here<- => ...)';
+    }
+
+    GetOptionsFromArray(\$opts{'argv'}->@* => \$self->{'opts'}->%*,
         'help|h',
-        'orphans|o',
-        'stdin', '',
-        'arg|a=s@',
-        'switch|s=s',
-        'filter-plugin|F=s',
-        'filter-opts|f=s%' => sub { $self->{'opts'}{'filter-opts'}{$_[1]} = $_[2] },
+        $self->register($opts{'parse'}->@*),
     ) or $self->usage();
 
-    my $parsed = $self->parse();
+    $self->{'opts'}{'help'} and $self->usage();
+
+    my $parsed = $self->parse($opts{'parse'}->@*);
 
     return sub {
-        return $parsed;
+        my $name = shift or return $parsed;
+        exists $parsed->{$name} and return $parsed->{$name};
+
+        # confess if data is uninitialized
+        # --------------------------------
+        # note: if you do not want this behavior,
+        #       do not use it with argument
+        confess __PACKAGE__,
+                ': data is uninitialized: ',
+                '->("',$name,'")';
     }
 }
 
@@ -40,9 +55,51 @@ sub defaults ($self, %defaults) {
     return 1;
 }
 
-sub parse ($self) {
+sub parse ($self, @to_parse) {
+    return {
+        map {
+            if (my $method = $self->can('parse_'.$_)) {
+                ( $_ => { $self->$method } )
+            } else {
+                confess __PACKAGE__,
+                        ': method "parse_', $_, '()" do not exist: ',
+                        '->new(parse => ["', $_, '", ...]';
+            }
+        } @to_parse
+    };
+}
+
+sub register ($self, @names) {
     $self->{'opts'}{'help'} and $self->usage();
 
+    return map {
+        if (my $method = $self->can('register_'.$_)) {
+            $self->$method
+        } else {
+            confess __PACKAGE__,
+                    ': method "register_', $_, '()" do not exist: ',
+                    '->new(parse => ["', $_, '", ...]';
+        }
+    } @names
+}
+
+#--------------------------------------------------
+# Above is a base/common functionality
+#--------------------------------------------------
+#
+# arguments related to --switch:
+
+sub register_switch ($self) {
+    return (
+        'stdin', '',
+        'arg|a=s@',
+        'switch|s=s',
+        'filter-plugin|F=s',
+        'filter-opts|f=s%' => sub { $self->{'opts'}{'filter-opts'}{$_[1]} = $_[2] },
+    );
+}
+
+sub parse_switch ($self) {
     # Exceptions:
     if($self->{'opts'}{'stdin'} or $self->{'opts'}{''}) {
         # sorry, there can be only one! :)
@@ -58,25 +115,16 @@ sub parse ($self) {
     }
 
     # Let's begin:
-    if(my $method = $self->can('parse_switch_'.$self->{'opts'}{'switch'})) {
-        return {
-            'switch' => [ $self->$method() ],
-            'other'  => { $self->parse_other() }
-        };
+    if(my $method = $self->can('switch_'.$self->{'opts'}{'switch'})) {
+        return $self->$method();
     } else {
         warn "Option -s get unknown parameter...\n";
         $self->usage();
     }
 }
 
-sub parse_other ($self) {
-    # return options not related to --switch
-    return $self->{'opts'}->%{qw(
-        orphans
-    )}
-}
 
-sub parse_switch_pacman ($self) {
+sub switch_pacman ($self) {
     $self->defaults(
         'filter-opts'   => {},
         'filter-plugin' => 'columns',
@@ -92,7 +140,7 @@ sub parse_switch_pacman ($self) {
 }
 
 
-sub parse_switch_files ($self) {
+sub switch_files ($self) {
     $self->defaults(
         'filter-opts' => {}
     );
@@ -109,7 +157,7 @@ sub parse_switch_files ($self) {
     ]);
 }
 
-sub parse_switch_output ($self) {
+sub switch_output ($self) {
     $self->defaults(
         'filter-opts'   => {},
         'filter-plugin' => 'columns'
@@ -123,7 +171,7 @@ sub parse_switch_output ($self) {
     }]);
 }
 
-sub parse_switch_stdin ($self) {
+sub switch_stdin ($self) {
     $self->defaults(
         'filter-opts'   => {},
         'filter-plugin' => 'columns'
@@ -136,6 +184,24 @@ sub parse_switch_stdin ($self) {
                 $self->{'opts'}{'filter-opts'}->%*
     }]);
 }
+
+#
+# other root arguments:
+
+sub register_misc ($self) {
+    return (
+        'orphans|o'
+    );
+}
+
+sub parse_misc ($self) {
+    return $self->{'opts'}->%{qw(
+        orphans
+    )}
+}
+
+#
+# usage (help screen):
 
 sub usage ($self) {
     say <DATA>;

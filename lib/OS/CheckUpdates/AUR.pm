@@ -14,7 +14,7 @@ use OS::CheckUpdates::AUR::ParseArgs;
 use OS::CheckUpdates::AUR::Stats;
 use OS::CheckUpdates::AUR::multiinfo;
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 
 
@@ -157,7 +157,7 @@ OS::CheckUpdates::AUR - checkupdates for packages installed from AUR
 
 =head1 VERSION
 
-Version 0.05
+Version 0.06
 
 =head1 SYNOPSIS
 
