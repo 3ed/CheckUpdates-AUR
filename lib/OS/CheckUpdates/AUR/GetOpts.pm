@@ -52,23 +52,19 @@ sub new ($class, %opts) {
 }
 
 sub _auto_load_parents ($self, @modules) {
-    foreach (@modules) {
-        my $path = path(__FILE__);
-        my $name = sprintf('%s::%s', __PACKAGE__, $_);
+    my $modl = sprintf('%s::', __PACKAGE__);
+    my $path = path(__FILE__)->absolute;
+    my $dir  = $path->parent->child($path->basename('.pm'));
 
-        $path = $path
-            ->absolute
-            ->parent
-            ->child($path->basename('.pm'))
-            ->child($_ . '.pm');
+    foreach (@modules) {
+        $path = $dir->child($_ . '.pm');
 
         $path->is_file or confess
             __PACKAGE__,
             ': can\'t autoload "*::' . $_ . '" module: ',
             '->new(parse => [->here<-, ...], ...)';
 
-        require $path;
-        push @ISA, $name;
+        require $path; push @ISA, $modl . $_;
     }
 
     return 1;
