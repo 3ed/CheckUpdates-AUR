@@ -41,7 +41,7 @@ sub for arg | arg  | desc | params
      | `-s` | switch | `pacman` (default), `stdin`, `output`, `files`
 `-s` | `-a` | arg for switch action, for `pacman` are pacmans arguments
 `-s` | `-F` | type of filter, for `pacman`, `stdin`, `output` switches | `columns` (default)
-`-F` | `-f` | filter option for `columns` filter, column number counted from zero | `name=?` (default: 0), `ver=?` (default: 1)
+`-F` | `-f` | filter option for `columns` filter, column number counted from zero (for `files` are different) | `name=?` (default: 0), `ver=?` (default: 1)
 
 For more details, see manual and: `checkupdates-aur ``help`
 
