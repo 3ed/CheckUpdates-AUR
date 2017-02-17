@@ -14,6 +14,12 @@ Command for checking updates:
 ```
 /usr/bin/sh -c "/usr/bin/checkupdates; /usr/bin/checkupdates-aur"
 ```
+
+For instalation in local-lib:
+```
+/usr/bin/sh -c "/usr/bin/checkupdates; eval $(perl -I ~/perl5/lib/perl5/ -Mlocal::lib) &> /dev/null; ~/perl5/bin/checkupdates-aur"
+```
+
 Command for upgrades:
 ```
 gnome-terminal -e 'sh -c  "yaourt -Syu --aur; echo; echo All done... now you can press enter or close this window.; read" '
@@ -27,15 +33,31 @@ checkupdates-aur | awk '{print $1}'
 
 ### Example2, list outdated local repo packages:
 ```
-pacman -Sl my_own_repo | awk '{print $2" "$3}' | checkupdates-aur -
+checkupdates-aur -a '-Sl' -a my_own_repo -f name=1 -f ver=2
 ```
+
+sub for arg | arg  | desc | params
+------------|------|------|-------
+     | `-s` | switch | `pacman` (default), `stdin`, `output`, `files`
+`-s` | `-a` | arg for switch action, for `pacman` are pacmans arguments
+`-s` | `-F` | type of filter, for `pacman`, `stdin`, `output` switches | `columns` (default)
+`-F` | `-f` | filter option for `columns` filter, column number counted from zero | `name=?` (default: 0), `ver=?` (default: 1)
+
+For more details, see manual and: `checkupdates-aur ``help`
 
 ### Example3, fast list for your perl program:
 ```
 ...
 use OS::CheckUpdates::AUR;
-my $cua = OS::CheckUpdates::AUR->new();
-do_updates(@{$cua->get()});
+
+my $cua = OS::CheckUpdates::AUR->new(
+  pacman => [
+    [ '-Qm' ],
+    columns => { name=>0, ver=>1 }
+  ]
+);
+
+$cua->print();
 ...
 ```
 
@@ -48,6 +70,12 @@ perl Build.PL
 ./Build test
 ./Build install
 ```
+
+or using cpan-minus:
+```
+cpanm --install .
+```
+
 # SUPPORT AND DOCUMENTATION
 https://github.com/3ed/CheckUpdates-AUR/
 
