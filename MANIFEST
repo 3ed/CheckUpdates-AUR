@@ -8,6 +8,8 @@ lib/OS/CheckUpdates/AUR/Base/Filter.pm
 lib/OS/CheckUpdates/AUR/Base/ParseArgs.pm
 lib/OS/CheckUpdates/AUR/Filter/Pacman.pm
 lib/OS/CheckUpdates/AUR/GetOpts.pm
+lib/OS/CheckUpdates/AUR/GetOpts/misc.pm
+lib/OS/CheckUpdates/AUR/GetOpts/switch.pm
 lib/OS/CheckUpdates/AUR/multiinfo.pm
 lib/OS/CheckUpdates/AUR/ParseArgs.pm
 lib/OS/CheckUpdates/AUR/Stats.pm

@@ -4,6 +4,8 @@ use feature qw(signatures postderef);
 no warnings qw(experimental::signatures experimental::postderef);
 
 use Carp qw(confess);
+use Path::Tiny;
+
 use Getopt::Long qw(
     GetOptionsFromArray
     :config
@@ -11,6 +13,7 @@ use Getopt::Long qw(
         no_ignore_case
 );
 
+our @ISA;
 
 sub new ($class, %opts) {
     my $self = bless {}, $class;
@@ -22,18 +25,21 @@ sub new ($class, %opts) {
                     '->new(->here<- => ...)';
     }
 
-    GetOptionsFromArray(\$opts{'argv'}->@* => \$self->{'opts'}->%*,
+    $self->_auto_load_parents($opts{'parse'}->@*);
+
+    GetOptionsFromArray(
+        \$opts{'argv'}->@* => \$self->{'opts'}->%*,
         'help|h',
-        $self->register($opts{'parse'}->@*),
+        $self->_auto_register($opts{'parse'}->@*),
     ) or $self->usage();
 
     $self->{'opts'}{'help'} and $self->usage();
 
-    my $parsed = $self->parse($opts{'parse'}->@*);
+    my $parsed = $self->_auto_parse($opts{'parse'}->@*);
 
     return sub {
-        my $name = shift or return $parsed;
-        exists $parsed->{$name} and return $parsed->{$name};
+        my $name = shift         or  return $parsed;
+        exists $parsed->{$name}  and return $parsed->{$name};
 
         # confess if data is uninitialized
         # --------------------------------
@@ -45,17 +51,30 @@ sub new ($class, %opts) {
     }
 }
 
-# default - the helper: overwrite values only this keys
-# wich have undefined values
-sub defaults ($self, %defaults) {
-    while(my ($key, $val) = each %defaults) {
-        $self->{'opts'}{$key} //= $val;
+sub _auto_load_parents ($self, @modules) {
+    foreach (@modules) {
+        my $path = path(__FILE__);
+        my $name = sprintf('%s::%s', __PACKAGE__, $_);
+
+        $path = $path
+            ->absolute
+            ->parent
+            ->child($path->basename('.pm'))
+            ->child($_ . '.pm');
+
+        $path->is_file or confess
+            __PACKAGE__,
+            ': can\'t autoload "*::' . $_ . '" module: ',
+            '->new(parse => [->here<-, ...], ...)';
+
+        require $path;
+        push @ISA, $name;
     }
 
     return 1;
 }
 
-sub parse ($self, @to_parse) {
+sub _auto_parse ($self, @to_parse) {
     return {
         map {
             if (my $method = $self->can('parse_'.$_)) {
@@ -69,9 +88,7 @@ sub parse ($self, @to_parse) {
     };
 }
 
-sub register ($self, @names) {
-    $self->{'opts'}{'help'} and $self->usage();
-
+sub _auto_register ($self, @names) {
     return map {
         if (my $method = $self->can('register_'.$_)) {
             $self->$method
@@ -83,125 +100,15 @@ sub register ($self, @names) {
     } @names
 }
 
-#--------------------------------------------------
-# Above is a base/common functionality
-#--------------------------------------------------
-#
-# arguments related to --switch:
-
-sub register_switch ($self) {
-    return (
-        'stdin', '',
-        'arg|a=s@',
-        'switch|s=s',
-        'filter-plugin|F=s',
-        'filter-opts|f=s%' => sub { $self->{'opts'}{'filter-opts'}{$_[1]} = $_[2] },
-    );
-}
-
-sub parse_switch ($self) {
-    # Exceptions:
-    if($self->{'opts'}{'stdin'} or $self->{'opts'}{''}) {
-        # sorry, there can be only one! :)
-        $self->{'opts'}{'switch'}
-            and warn "Can't be mixed: --stdin and --switch\n"
-            and $self->usage();
-
-        $self->{'opts'}{'switch'} = 'stdin';
-
-    } elsif(not $self->{'opts'}{'switch'}) {
-        # default mode
-        $self->{'opts'}{'switch'} = 'pacman';
+# default - the helper: overwrite values only this keys
+# wich have undefined values
+sub defaults ($self, %defaults) {
+    while(my ($key, $val) = each %defaults) {
+        $self->{'opts'}{$key} //= $val;
     }
 
-    # Let's begin:
-    if(my $method = $self->can('switch_'.$self->{'opts'}{'switch'})) {
-        return $self->$method();
-    } else {
-        warn "Option -s get unknown parameter...\n";
-        $self->usage();
-    }
+    return 1;
 }
-
-
-sub switch_pacman ($self) {
-    $self->defaults(
-        'filter-opts'   => {},
-        'filter-plugin' => 'columns',
-        'arg'           => ['-Qm']
-    );
-
-    return (
-        'pacman' => [
-            $self->{'opts'}{'arg'},
-            $self->{'opts'}{'filter-plugin'} => {
-                $self->{'opts'}{'filter-opts'}->%*
-    }]);
-}
-
-
-sub switch_files ($self) {
-    $self->defaults(
-        'filter-opts' => {}
-    );
-
-    if(not $self->{'opts'}{'arg'}) {
-        warn "You must use with: -a\n";
-        $self->usage();
-    }
-
-    return (
-        'files' => [
-            $self->{'opts'}{'arg'},
-            $self->{'opts'}{'filter-opts'}->%*
-    ]);
-}
-
-sub switch_output ($self) {
-    $self->defaults(
-        'filter-opts'   => {},
-        'filter-plugin' => 'columns'
-    );
-
-    return (
-        'output' => [
-            $self->{'opts'}{'arg'},
-            $self->{'opts'}{'filter-plugin'} => {
-                $self->{'opts'}{'filter-opts'}->%*
-    }]);
-}
-
-sub switch_stdin ($self) {
-    $self->defaults(
-        'filter-opts'   => {},
-        'filter-plugin' => 'columns'
-    );
-
-    return (
-        'fh' => [
-            '\*STDIN',
-            $self->{'opts'}{'filter-plugin'} => {
-                $self->{'opts'}{'filter-opts'}->%*
-    }]);
-}
-
-#
-# other root arguments:
-
-sub register_misc ($self) {
-    return (
-        'orphans|o'
-    );
-}
-
-sub parse_misc ($self) {
-    return $self->{'opts'}->%{qw(
-        orphans
-    )}
-}
-
-#
-# usage (help screen):
 
 sub usage ($self) {
     say <DATA>;
