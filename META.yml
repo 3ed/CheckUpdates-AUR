@@ -18,23 +18,30 @@ name: OS-CheckUpdates-AUR
 provides:
   OS::CheckUpdates::AUR:
     file: lib/OS/CheckUpdates/AUR.pm
-    version: '0.05'
+    version: '0.06'
   OS::CheckUpdates::AUR::Base::Capture:
-    file: lib/OS/CheckUpdates/AUR.pm
+    file: lib/OS/CheckUpdates/AUR/Base/Capture.pm
   OS::CheckUpdates::AUR::Base::Filter:
-    file: lib/OS/CheckUpdates/AUR.pm
+    file: lib/OS/CheckUpdates/AUR/Base/Filter.pm
   OS::CheckUpdates::AUR::Base::ParseArgs:
-    file: lib/OS/CheckUpdates/AUR.pm
+    file: lib/OS/CheckUpdates/AUR/Base/ParseArgs.pm
   OS::CheckUpdates::AUR::Filter::Pacman:
-    file: lib/OS/CheckUpdates/AUR.pm
+    file: lib/OS/CheckUpdates/AUR/Filter/Pacman.pm
+  OS::CheckUpdates::AUR::GetOpts:
+    file: lib/OS/CheckUpdates/AUR/GetOpts.pm
+  OS::CheckUpdates::AUR::GetOpts::misc:
+    file: lib/OS/CheckUpdates/AUR/GetOpts/misc.pm
+  OS::CheckUpdates::AUR::GetOpts::switch:
+    file: lib/OS/CheckUpdates/AUR/GetOpts/switch.pm
   OS::CheckUpdates::AUR::ParseArgs:
-    file: lib/OS/CheckUpdates/AUR.pm
+    file: lib/OS/CheckUpdates/AUR/ParseArgs.pm
   OS::CheckUpdates::AUR::Stats:
-    file: lib/OS/CheckUpdates/AUR.pm
+    file: lib/OS/CheckUpdates/AUR/Stats.pm
   OS::CheckUpdates::AUR::multiinfo:
-    file: lib/OS/CheckUpdates/AUR.pm
+    file: lib/OS/CheckUpdates/AUR/multiinfo.pm
 requires:
   Capture::Tiny: '0'
+  Getopt::Long: '0'
   JSON: '0'
   LWP: '0'
   LWP::Protocol::https: '0'
@@ -42,5 +49,5 @@ requires:
   Try::Tiny: '0'
 resources:
   license: http://opensource.org/licenses/artistic-license-2.0.php
-version: '0.05'
+version: '0.06'
 x_serialization_backend: 'CPAN::Meta::YAML version 0.018'

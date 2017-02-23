@@ -301,6 +301,14 @@ Compare two versions in pacman way. Frontend for vercmp command.
 
 Fast method to get info about multiple packages.
 
+=head2 requested($)
+
+ Get aur name ver pair in format: hash, hash-copy, count, etc
+
+=head2 stringify
+
+ Build in function for overload
+
 =head1 AUTHOR
 
 3ED, C<< <krzysztof1987 at gmail.com> >>

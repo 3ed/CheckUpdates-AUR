@@ -15,7 +15,7 @@ unless ($ENV{TEST_AUTHOR_CHECKUPDATE}) {
 plan tests => 2;
 
 
-my $cua = OS::CheckUpdates::AUR->new_lazy();
+my $cua = OS::CheckUpdates::AUR->new_lazy('packages' => []);
 
 sub test_try {
 	my $a = shift || undef;
