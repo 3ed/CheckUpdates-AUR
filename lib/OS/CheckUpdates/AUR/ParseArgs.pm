@@ -199,22 +199,6 @@ Version 0.06
 
  $cua->retrived(THIS);
 
-=head2 requested()
-
- get (or set!) number of requested packages to aur rpc
-
-=head2 retrived
-
- get number of retrived packages from aur rpc
-
-=head2 orphaned
-
- get number of packages that are not found
-
-=head2 updates
-
- get number of packages that are older than in aur
-
 =head1 AUTHOR
 
 3ED, C<< <krzysztof1987 at gmail.com> >>

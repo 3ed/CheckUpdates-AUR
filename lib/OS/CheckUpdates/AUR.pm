@@ -142,9 +142,7 @@ sub print {
 sub orphans {
     my $self = shift;
 
-    return wantarray
-      ? @{ $self->{'orphans'} }
-      : $#{ $self->{'orphans'} } + 1;
+    return $self->{'orphans'}->@*;
 }
 
 1;
