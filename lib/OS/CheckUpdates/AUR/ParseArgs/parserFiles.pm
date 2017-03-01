@@ -1,6 +1,6 @@
 =head1 NAME
 
-OS::CheckUpdates::AUR::GetOpts::misc - GetOpts plugin
+OS::CheckUpdates::AUR::ParseArgs::parserFiles - parse -> files
 
 =head1 VERSION
 
@@ -8,68 +8,89 @@ Version 0.06
 
 =head1 SYNOPSIS
 
- misc options plugin for GetOpts (--orphans)
+ autoloaded by ParseArgs
+
+ parse files switch
+
+=head1 USAGE
+
+ my $sub = parent->parse('files' => [...])
 
 =cut
 
-package OS::CheckUpdates::AUR::GetOpts::misc;
+package OS::CheckUpdates::AUR::ParseArgs::parserFiles;
 use 5.022;
-use feature qw(signatures postderef);
-no warnings qw(experimental::signatures experimental::postderef);
+use feature    qw(signatures postderef);
+no  warnings   qw(experimental::signatures experimental::postderef);
+use Carp       qw(confess);
+use Path::Tiny qw(path);
+
 
 =head1 SUBROUTINES/METHODS
 
-=head2 register_misc()
+=head2 parse_files
 
- registering arguments in getopts
-
-=cut
-
-sub register_misc ($self) {
-    return (
-        'orphans|o'
-    );
-}
-
-=head2 parse_misc()
-
- parse parameters getted from arguments that been used by user
+ files => [ 'dir1',           arg1 => val, arg2 => val ]
+ files => [ ['dir1', 'dir2'], arg1 => val, arg2 => val ]
 
 =cut
 
-sub parse_misc ($self) {
-    return $self->{'opts'}->%{qw(
-        orphans
-    )}
-}
+sub parse_files($self, $dirs, %opts) {
+    $dirs = [$dirs] if ref $dirs ne 'ARRAY'; # any to array
 
-=head2 usage_usage_misc()
 
- help USAGE section (NOT IMPLEMENTED)
+    $opts{'regexp'}          //= '(?<name>.*)-(?<ver>[^-]*-[^-]*)-[^-]*\.pkg\.tar\.xz';
+    $opts{'recursive'}       //= 0;
+    $opts{'follow_symlinks'} //= 0;
 
-=cut
 
-sub help_usage_misc ($self) {
-	return '[-o]';
-}
+    my $r = qr/$opts{'regexp'}/sn
+        or confess __PACKAGE__, '->parser(): ',
+                   'bad regexp: ',
+                   'files => [[...], regexp => ->here<-]';
 
-sub help_options_misc ($self) {
-	return <<EOF
-    -o, --orphans
-        Show packages that can't be found
-        on AUR.
-EOF
+
+    dir: for (my $i=0; $i <= $dirs->$#*; $i++) {
+
+        # confess if not string
+        confess __PACKAGE__, '->parser(): ',
+                'type is ', lc ref $dirs->@[$i], ' ',
+                'but should be string: ',
+                'files => [->here<-, ...]'
+            if ref $dirs->@[$i] ne '';
+
+        # initiate Path::Tiny
+        my $dir = path($dirs->@[$i]);
+
+        # confess if is not dir
+        confess __PACKAGE__, '->parser(): ',
+                'path is not a folder: ',
+                'files => [->here<-, ...]'
+            unless $dir->is_dir;
+
+        # scour through dir(s)
+        $dir->visit(sub{
+            # if is file and not link and regexp pass
+            $_->is_file
+                and $_->basename =~ m/$r/
+                and defined $+{name}
+                and defined $+{ver}
+                and $self->{'parsed'}->{$+{name}} = $+{ver};
+        },
+        {
+            recurse         => $opts{'recursive'},
+            follow_symlinks => $opts{'follow_symlinks'},
+        });
+    }
+
+
+    return $self;
 }
 
 1;
 
 
-=head1 AUTHOR
-
-3ED, C<< <krzysztof1987 at gmail.com> >>
-
-
-
+__END__
 =head1 BUGS
 
 Please report any bugs or feature requests to C<bug-checkupdates-aur at rt.cpan.org>, or through

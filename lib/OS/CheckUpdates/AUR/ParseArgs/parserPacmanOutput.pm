@@ -1,6 +1,6 @@
 =head1 NAME
 
-OS::CheckUpdates::AUR::GetOpts::misc - GetOpts plugin
+OS::CheckUpdates::AUR::ParseArgs::parserPacmanOutput - parse -> pacman, output, fh
 
 =head1 VERSION
 
@@ -8,68 +8,108 @@ Version 0.06
 
 =head1 SYNOPSIS
 
- misc options plugin for GetOpts (--orphans)
+ autoloaded by ParseArgs
+
+=head1 USAGE
+
+ my $sub = parent->parse('pacman' => [...])
+ my $sub = parent->parse('output' => [...])
+ my $sub = parent->parse('fh'     => [...])
 
 =cut
 
-package OS::CheckUpdates::AUR::GetOpts::misc;
+package OS::CheckUpdates::AUR::ParseArgs::parserPacmanOutput;
 use 5.022;
-use feature qw(signatures postderef);
-no warnings qw(experimental::signatures experimental::postderef);
+use feature  qw(signatures postderef);
+no  warnings qw(experimental::signatures experimental::postderef);
+use Carp     qw(confess);
+use parent   qw(OS::CheckUpdates::AUR::Base::Capture);
 
 =head1 SUBROUTINES/METHODS
 
-=head2 register_misc()
+=head2 filter_pacman
 
- registering arguments in getopts
+ pacman output filters
 
 =cut
 
-sub register_misc ($self) {
-    return (
-        'orphans|o'
+use OS::CheckUpdates::AUR::Filter::Pacman;
+
+sub filter_pacman($self, @opts) {  # TODO: plugin system
+    state $FilterOutput = OS::CheckUpdates::AUR::Filter::Pacman->new(
+        \$self->{'parsed'}->%*
     );
+
+    return $FilterOutput->filter(@opts);
 }
 
-=head2 parse_misc()
 
- parse parameters getted from arguments that been used by user
+=head2 parse_fh
+
+ fh => [ \$fh, filter-plugin-name => { filter-opts => values } ]
 
 =cut
 
-sub parse_misc ($self) {
-    return $self->{'opts'}->%{qw(
-        orphans
-    )}
+sub parse_fh(
+    $self,
+    $fh,
+    @filter
+) {
+    confess __PACKAGE__, '->parser(): ',
+            'type is ', lc ref $fh, ' ',
+            'but should be fh: ',
+            'fh => [->here<-, ...]'
+        unless ref $fh eq 'GLOB';
+
+    # read fh then pass to parse_output
+    $self->parse_output(
+        join("", <$fh>),
+        @filter
+    );
+
+    return $self;
 }
 
-=head2 usage_usage_misc()
+=head2 parse_pacman
 
- help USAGE section (NOT IMPLEMENTED)
+ pacman => [ ['pacman args', ...], filter-plugin-name => { filter-opts => values } ]
 
 =cut
 
-sub help_usage_misc ($self) {
-	return '[-o]';
+sub parse_pacman(
+    $self,
+    $pacman_opts,
+    @filter
+) {
+    $self->parse_output(
+        $self->capture_cmd('pacman', $pacman_opts->@*),
+        @filter
+    );
+
+    return $self;
 }
 
-sub help_options_misc ($self) {
-	return <<EOF
-    -o, --orphans
-        Show packages that can't be found
-        on AUR.
-EOF
+=head2 parse_output
+
+ output => [ 'pacman output', filter-plugin-name => { filter-opts => values } ]
+
+=cut
+
+sub parse_output(
+    $self,
+    $output,
+    $filter_name = "columns",
+    $filter_opts = {}
+) {
+    $self->filter_pacman($output, $filter_name, $filter_opts);
+
+    return $self;
 }
+
 
 1;
 
-
-=head1 AUTHOR
-
-3ED, C<< <krzysztof1987 at gmail.com> >>
-
-
-
+__END__
 =head1 BUGS
 
 Please report any bugs or feature requests to C<bug-checkupdates-aur at rt.cpan.org>, or through

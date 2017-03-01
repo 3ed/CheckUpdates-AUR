@@ -1,7 +1,29 @@
+=head1 NAME
+
+OS::CheckUpdates::AUR::GetOpts::switch - GetOpts plugin
+
+=head1 VERSION
+
+Version 0.06
+
+=head1 SYNOPSIS
+
+ switch options plugin for GetOpts (-s, -a, -F, -f)
+
+=cut
+
 package OS::CheckUpdates::AUR::GetOpts::switch;
 use 5.022;
 use feature qw(signatures postderef);
 no warnings qw(experimental::signatures experimental::postderef);
+
+=head1 SUBROUTINES/METHODS
+
+=head2 register_switch()
+
+ registering arguments in getopts
+
+=cut
 
 sub register_switch ($self) {
     return (
@@ -12,6 +34,12 @@ sub register_switch ($self) {
         'filter-opts|f=s%' => sub { $self->{'opts'}{'filter-opts'}{$_[1]} = $_[2] },
     );
 }
+
+=head2 parse_switch()
+
+ parse parameters getted from arguments that been used by user
+
+=cut
 
 sub parse_switch ($self) {
     # Exceptions:
@@ -37,6 +65,11 @@ sub parse_switch ($self) {
     }
 }
 
+=head2 switch_pacman
+
+ -s pacman
+
+=cut
 
 sub switch_pacman ($self) {
     $self->defaults(
@@ -53,6 +86,11 @@ sub switch_pacman ($self) {
     }]);
 }
 
+=head2 switch_files
+
+ -s files
+
+=cut
 
 sub switch_files ($self) {
     $self->defaults(
@@ -71,6 +109,12 @@ sub switch_files ($self) {
     ]);
 }
 
+=head2 switch_output
+
+ -s output
+
+=cut
+
 sub switch_output ($self) {
     $self->defaults(
         'filter-opts'   => {},
@@ -84,6 +128,12 @@ sub switch_output ($self) {
                 $self->{'opts'}{'filter-opts'}->%*
     }]);
 }
+
+=head2 switch_stdin
+
+ -s stdin (- and --stdin)
+
+=cut
 
 sub switch_stdin ($self) {
     $self->defaults(
@@ -99,48 +149,77 @@ sub switch_stdin ($self) {
     }]);
 }
 
+sub help_usage_switch($self) {
+	return '[-s <switch>] [-a <arg>] [-F <plug>] [-f <opts>]'
+}
+
+sub help_options_switch($self) {
+	return <<EOF
+    -, --stdin
+        You can specify packages to check.
+        \$ checkupdates-aur   #is equal to:
+        \$ pacman -Qm | checkupdates-aur -
+
+    -s, --switch
+        pacman (default)
+            run pacman and filter output
+
+            -a [arg]
+                change/set pacman argument,
+                one per -a, eg:
+                > pacman -Sl repo
+                is equial to:
+                > -s pacman -a '-Sl' -a 'repo'
+                default: -a '-Qm'
+
+            -F [filter-plugin-name]
+                filter plugin name
+
+            -f [opt=val]
+                plugin options
+
+            filter-plugins:
+                columns (default)
+                    filter by column number,
+                    options: name, ver
+                    default: -f name=0 -f ver=1
+
+        files
+            read files names from given folder
+
+            -a [path to folder]
+
+            -f [opt=val]
+                filter options
+
+                regexp=[regexp]
+                    filter names by matching to regexp,
+                    more in: man OS::CheckUpdates::AUR
+
+                recursive=[1/0]
+                    would you read from subdirs too?
+                    default: 0 (no)
+
+                follow_symlinks
+                    would you fellow symlinks?
+                    default: 0 (no)
+
+        output
+            parse pacman output
+
+            -a [pacman-ouput]
+                can be multiply -a
+
+            note: rest opts as in: --switch 'pacman'
+
+        stdin
+            same as: --stdin
+EOF
+}
+
 1;
 
 __END__
-
-=head1 NAME
-
-OS::CheckUpdates::AUR::GetOpts::switch - GetOpts plugin
-
-=head1 VERSION
-
-Version 0.06
-
-=head1 SYNOPSIS
-
- switch options plugin for GetOpts (-s, -a, -F, -f)
-
-=head1 SUBROUTINES/METHODS
-
-=head2 register_switch()
-
- registering arguments in getopts
-
-=head2 parse_switch()
-
- parse parameters getted from arguments that been used by user
-
-=head2 switch_pacman
-
- -s pacman
-
-=head2 switch_files
-
- -s files
-
-=head2 switch_output
-
- -s output
-
-=head2 switch_stdin
-
- -s stdin (- and --stdin)
-
 =head1 AUTHOR
 
 3ED, C<< <krzysztof1987 at gmail.com> >>

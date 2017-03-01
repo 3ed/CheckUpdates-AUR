@@ -1,6 +1,6 @@
 =head1 NAME
 
-OS::CheckUpdates::AUR::GetOpts::misc - GetOpts plugin
+OS::CheckUpdates::AUR::ParseArgs::getters - getters for ParseArgs
 
 =head1 VERSION
 
@@ -8,68 +8,76 @@ Version 0.06
 
 =head1 SYNOPSIS
 
- misc options plugin for GetOpts (--orphans)
+ autoloaded by ParseArgs
+
+ returns successfuly parsed data from arguments passed to parent->parse()
+
+=head1 USAGE
+
+ $parent->('hash') # return: $this->get_hash;
 
 =cut
 
-package OS::CheckUpdates::AUR::GetOpts::misc;
+package OS::CheckUpdates::AUR::ParseArgs::getters;
 use 5.022;
 use feature qw(signatures postderef);
 no warnings qw(experimental::signatures experimental::postderef);
 
 =head1 SUBROUTINES/METHODS
 
-=head2 register_misc()
+=head2 get_count()
 
- registering arguments in getopts
-
-=cut
-
-sub register_misc ($self) {
-    return (
-        'orphans|o'
-    );
-}
-
-=head2 parse_misc()
-
- parse parameters getted from arguments that been used by user
+ number of packages
 
 =cut
 
-sub parse_misc ($self) {
-    return $self->{'opts'}->%{qw(
-        orphans
-    )}
+sub get_count($self) {
+    return scalar keys $self->{'parsed'}->%*;
 }
 
-=head2 usage_usage_misc()
+=head2 get_keys()
 
- help USAGE section (NOT IMPLEMENTED)
+ return keys of hash (packages names)
 
 =cut
 
-sub help_usage_misc ($self) {
-	return '[-o]';
+sub get_keys($self) {
+    return keys $self->{'parsed'}->%*
 }
 
-sub help_options_misc ($self) {
-	return <<EOF
-    -o, --orphans
-        Show packages that can't be found
-        on AUR.
-EOF
+=head2 get_sorted_keys()
+
+ same as get_keys but sorted alphabeticly
+
+=cut
+
+sub get_sorted_keys($self) {
+    return sort keys $self->{'parsed'}->%*
+}
+
+=head2 get_hash()
+
+ return hash ref
+
+=cut
+
+sub get_hash($self) {
+    return \$self->{'parsed'}->%*
+}
+
+=head2 get_hash_copy()
+
+ return hash copy, not ref
+
+=cut
+
+sub get_hash_copy($self) {
+    return {$self->{'parsed'}->%*}
 }
 
 1;
 
-
-=head1 AUTHOR
-
-3ED, C<< <krzysztof1987 at gmail.com> >>
-
-
-
+__END__
 =head1 BUGS
 
 Please report any bugs or feature requests to C<bug-checkupdates-aur at rt.cpan.org>, or through

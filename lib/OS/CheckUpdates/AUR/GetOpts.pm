@@ -1,10 +1,26 @@
+=head1 NAME
+
+OS::CheckUpdates::AUR::GetOpts - GetOpts from cli
+
+=head1 VERSION
+
+Version 0.06
+
+=head1 SYNOPSIS
+
+ Getopts pluggable framework
+
+=cut
+
+
 package OS::CheckUpdates::AUR::GetOpts;
 use 5.022;
-use feature qw(signatures postderef);
-no warnings qw(experimental::signatures experimental::postderef);
+use feature  qw(signatures postderef);
+no  warnings qw(experimental::signatures experimental::postderef);
 
-use Carp qw(confess);
-use Path::Tiny;
+use Carp       qw(confess);
+use Path::Tiny qw(path);
+use parent     qw(OS::CheckUpdates::AUR::Base::AutoLoadParents);
 
 use Getopt::Long qw(
     GetOptionsFromArray
@@ -13,29 +29,41 @@ use Getopt::Long qw(
         no_ignore_case
 );
 
-our @ISA;
+
+=head1 SUBROUTINES/METHODS
+
+=head2 new()
+
+ create object, options:
+
+    argv => [@ARGV] - argv...
+
+=cut
 
 sub new ($class, %opts) {
     my $self = bless {}, $class;
 
-    foreach (qw(parse argv)) {
-        exists $opts{$_} or
-            confess __PACKAGE__,
-                    ': "', $_, '" is required: ',
-                    '->new(->here<- => ...)';
-    }
+    exists $opts{'argv'} or
+        confess __PACKAGE__,
+                ': "', $_, '" is required: ',
+                '->new(->here<- => ...)';
 
-    $self->_auto_load_parents($opts{'parse'}->@*);
+    $self->_auto_load_parents(
+        path      => __FILE__,
+        modprefix => 'OS::CheckUpdates::AUR::GetOpts::',
+        register  => 'plugins',
+    );
 
     GetOptionsFromArray(
         \$opts{'argv'}->@* => \$self->{'opts'}->%*,
+
+        $self->_auto_register,
         'help|h',
-        $self->_auto_register($opts{'parse'}->@*),
-    ) or $self->usage();
+    ) or $self->_help;
 
-    $self->{'opts'}{'help'} and $self->usage();
+    $self->{'opts'}{'help'} and $self->_help;
 
-    my $parsed = $self->_auto_parse($opts{'parse'}->@*);
+    my $parsed = $self->_auto_parse;
 
     return sub {
         my $name = shift         or  return $parsed;
@@ -51,26 +79,26 @@ sub new ($class, %opts) {
     }
 }
 
-sub _auto_load_parents ($self, @modules) {
-    my $modl = sprintf('%s::', __PACKAGE__);
-    my $path = path(__FILE__)->absolute;
-    my $dir  = $path->parent->child($path->basename('.pm'));
+=head2 defaults(arg => value)
 
-    foreach (@modules) {
-        $path = $dir->child($_ . '.pm');
+ Plugin helpers to set default values if values are undefined
+ (should be used inside plugins)
 
-        $path->is_file or confess
-            __PACKAGE__,
-            ': can\'t autoload "*::' . $_ . '" module: ',
-            '->new(parse => [->here<-, ...], ...)';
+=cut
 
-        require $path; push @ISA, $modl . $_;
+sub defaults ($self, %defaults) {
+    while(my ($key, $val) = each %defaults) {
+        $self->{'opts'}{$key} //= $val;
     }
 
     return 1;
 }
 
-sub _auto_parse ($self, @to_parse) {
+#-------------------------------------------------------------------------------
+# PLUGIN LOGICK
+#-------------------------------------------------------------------------------
+
+sub _auto_parse ($self) {
     return {
         map {
             if (my $method = $self->can('parse_'.$_)) {
@@ -80,11 +108,11 @@ sub _auto_parse ($self, @to_parse) {
                         ': method "parse_', $_, '()" do not exist: ',
                         '->new(parse => ["', $_, '", ...]';
             }
-        } @to_parse
-    };
+        } $self->{'plugins'}->{'loaded'}->@*
+    }
 }
 
-sub _auto_register ($self, @names) {
+sub _auto_register ($self) {
     return map {
         if (my $method = $self->can('register_'.$_)) {
             $self->$method
@@ -93,56 +121,38 @@ sub _auto_register ($self, @names) {
                     ': method "register_', $_, '()" do not exist: ',
                     '->new(parse => ["', $_, '", ...]';
         }
-    } @names
+    } $self->{'plugins'}->{'loaded'}->@*
 }
 
-# default - the helper: overwrite values only this keys
-# wich have undefined values
-sub defaults ($self, %defaults) {
-    while(my ($key, $val) = each %defaults) {
-        $self->{'opts'}{$key} //= $val;
-    }
-
-    return 1;
+sub _auto_help ($self, $what) {
+    return map {
+        if (my $method = $self->can('help_' . $what . '_' . $_ )) {
+            $self->$method;
+        } else {
+            ()
+        }
+    } $self->{'plugins'}->{'loaded'}->@*;
 }
 
-sub usage ($self) {
-    say <DATA>;
+sub _help ($self) {
+    say   'USAGE:';
+    say   '    checkupdates-aur [-h|--help]';
+    print '    CheckUpdates-aur '; say join " ", $self->_auto_help('usage');
+    say   ;
+    say   'OPTIONS:';
+    say   '    -h, --help';
+    say   '        Display this help and exit';
+    say   ;
+    say   join "\n", $self->_auto_help('options');
+    say   'MORE INFO:';
+    say   '    See man page...';
+
     exit 1;
 }
 
 1;
 
-=head1 NAME
-
-OS::CheckUpdates::AUR::GetOpts - GetOpts plugin
-
-=head1 VERSION
-
-Version 0.06
-
-=head1 SYNOPSIS
-
- misc options plugin for GetOpts (--orphans)
-
-=head1 SUBROUTINES/METHODS
-
-=head2 new()
-
- create object, options:
-
-    parse => [] - load plugins from s|(GetOpts).pm|$1/this.pm|
-    argv => [@ARGV] - argv...
-
-=head2 defaults(arg => value)
-
- Plugin helpers to set default values if values are undefined
-
-=head2 usage()
-
- -h, --help
-
- TODO: if everythin is pluggable, this should be too
+__END__
 
 =head1 AUTHOR
 
@@ -233,83 +243,3 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 =cut
-
-__DATA__
-USAGE:
-    checkupdates-aur [-o|--orphans] [-|--stdin]
-
-    checkupdates-aur [-o] [-s <switch>] [-a <arg>]
-                     [-F <plug>] [-f <opts>]
-
-    checkupdates-aur [-h|--help]
-
-OPTIONS:
-    -o, --orphans
-        Show packages that can't be found
-        on AUR.
-
-    -, --stdin
-        You can specify packages to check.
-        $ checkupdates-aur   #is equal to:
-        $ pacman -Qm | checkupdates-aur -
-
-    -s, --switch
-        pacman (default)
-            run pacman and filter output
-
-            -a [arg]
-                change/set pacman argument,
-                one per -a, eg:
-                > pacman -Sl repo
-                is equial to:
-                > -s pacman -a '-Sl' -a 'repo'
-                default: -a '-Qm'
-
-            -F [filter-plugin-name]
-                filter plugin name
-
-            -f [opt=val]
-                plugin options
-
-            filter-plugins:
-                columns (default)
-                    filter by column number,
-                    options: name, ver
-                    default: -f name=0 -f ver=1
-
-        files
-            read files names from given folder
-
-            -a [path to folder]
-
-            -f [opt=val]
-                filter options
-
-                regexp=[regexp]
-                    filter names by matching to regexp,
-                    more in: man OS::CheckUpdates::AUR
-
-                recursive=[1/0]
-                    would you read from subdirs too?
-                    default: 0 (no)
-
-                follow_symlinks
-                    would you fellow symlinks?
-                    default: 0 (no)
-
-        output
-            parse pacman output
-
-            -a [pacman-ouput]
-                can be multiply -a
-
-            note: rest opts as in: --switch 'pacman'
-
-        stdin
-            same as: --stdin
-
-    -h, --help
-        Display this help and exit.
-
-MORE INFO:
-    See man page...

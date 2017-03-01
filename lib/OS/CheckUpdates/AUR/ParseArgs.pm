@@ -1,160 +1,96 @@
 package OS::CheckUpdates::AUR::ParseArgs;
 use 5.022;
-use feature qw(signatures postderef);
-no warnings qw(experimental::signatures experimental::postderef);
+use Carp     qw(confess);
+use feature  qw(signatures postderef);
+no  warnings qw(experimental::signatures experimental::postderef);
+use parent   qw(OS::CheckUpdates::AUR::Base::AutoLoadParents);
 
-use Carp;
-use Path::Tiny qw( path );
-use OS::CheckUpdates::AUR::Filter::Pacman;
+# new(packages|pacman|files => [])
+#
+# COMMAND  => [ARGS,                         OPTIONAL_OPTS                     ]
+# ------------------------------------------------------------------------------
+# packages => [qw/name1 ver1/, 'name2', 'ver2', 'name3' => 'ver3'              ]
+# pacman   => [['-Qm'],             columns  => { name => 0, ver => 1 }        ]
+# pacman   => [['-Sl', 'lan'],      columns  => { name => 1, ver => 2 }        ]
+# output   => ['output'             columns  => { name => 1, ver => 2 }        ]
+# fh       => [\$FH,                columns  => { name => 0, ver => 1 }        ]
+# files    => ['folder',                     regexp => '...[^-]*.pkg.tar.xz$' }]
+# files    => [['folder1', 'folder2'],       regexp => '...[^-]*.pkg.tar.xz$' }]
 
-use parent qw(
-    OS::CheckUpdates::AUR::Base::ParseArgs
-    OS::CheckUpdates::AUR::Base::Capture
-);
 
-sub filter_pacman($self, @opts) {  # TODO: plugin system
-    state $FilterOutput = OS::CheckUpdates::AUR::Filter::Pacman->new(
-        \$self->{'parsed'}->%*
-    );
-
-    return $FilterOutput->filter(@opts);
+sub parser($class, @Args) {
+    return bless({}, $class)
+        ->_auto_load_parents(
+            path => __FILE__,
+            modprefix => 'OS::CheckUpdates::AUR::ParseArgs::')
+        ->_parser_add(@Args)
+        ->_parser_sub;
 }
 
-#-------------------------------------------------------------------------------
-# parse_* // parse_something == ->parser('something' => [@args])
-#-------------------------------------------------------------------------------
+sub _parser_add($self, @Args) {
+    confess __PACKAGE__, '->parser(): ',
+            'Should be even arguments, we got odd...'
+        unless ($#Args > 0 && $#Args % 2);
 
-sub parse_files($self, $dirs, %opts) {
-    $dirs = [$dirs] if ref $dirs ne 'ARRAY'; # any to array
+    $self->{'Args'}->@* = @Args;
 
+    return $self
+}
 
-    $opts{'regexp'}          //= '(?<name>.*)-(?<ver>[^-]*-[^-]*)-[^-]*\.pkg\.tar\.xz';
-    $opts{'recursive'}       //= 0;
-    $opts{'follow_symlinks'} //= 0;
+sub _parser_sub($self) {
+    return sub ($opt = "hash") {
+        confess '(', __PACKAGE__, '->parser(...))->( ->this<- ): ',
+                'value must be a string'
+            unless ref $opt eq "";
 
+        if(not exists  $self->{'parsed'} or $opt eq "refresh") {
+            $opt = "hash" if $opt eq "refresh"; # exception
+            $self->{'parsed'}->%* = (); # ???
+            $self->_parse_make;
+        }
 
-    my $r = qr/$opts{'regexp'}/sn
-        or confess __PACKAGE__, '->parser(): ',
-                   'bad regexp: ',
-                   'files => [[...], regexp => ->here<-]';
+        return $self->_get_make($opt);
+    }
+}
 
+# reserved: get_*
+sub _get_make($self, $opt) {
+    confess __PACKAGE__, '->parser(): count value must be a string'
+        unless ref $opt eq "";
 
-    dir: for (my $i=0; $i <= $dirs->$#*; $i++) {
+    if (my $method = $self->can('get_'.$opt)) {
+        return $self->$method;
+    } else {
+        confess __PACKAGE__, '->parser(): unknown counter';
+    }
+}
 
-        # confess if not string
+# reserved: parse_*
+sub _parse_make($self) {
+    my $i = 0;
+    while ($self->{Args}->@[$i]) {
         confess __PACKAGE__, '->parser(): ',
-                'type is ', lc ref $dirs->@[$i], ' ',
-                'but should be string: ',
-                'files => [->here<-, ...]'
-            if ref $dirs->@[$i] ne '';
+                'type is ', lc ref $self->{Args}->@[$i],
+                ' but should be string: ->here<- => [...]'
+            if ref $self->{Args}->@[$i];
 
-        # initiate Path::Tiny
-        my $dir = path($dirs->@[$i]);
-
-        # confess if is not dir
-        confess __PACKAGE__, '->parser(): ',
-                'path is not a folder: ',
-                'files => [->here<-, ...]'
-            unless $dir->is_dir;
-
-        # scour through dir(s)
-        $dir->visit(sub{
-            # if is file and not link and regexp pass
-            $_->is_file
-                and $_->basename =~ m/$r/
-                and defined $+{name}
-                and defined $+{ver}
-                and $self->{'parsed'}->{$+{name}} = $+{ver};
-        },
-        {
-            recurse         => $opts{'recursive'},
-            follow_symlinks => $opts{'follow_symlinks'},
-        });
+        if (
+            # ->...<- => [['...', ''...'], ... => ...]
+            my $method = $self->can('parse_' . $self->{Args}->@[$i++])
+        ) {
+            # ... => ->[['...', ''...'], ... => ...]<-
+            $self->$method($self->{Args}->@[$i++]->@*);
+        } else {
+            confess __PACKAGE__, '->parser(): ',
+                    'unknown option ->"', $self->{Args}->@[--$i], '"<- => [...]';
+                    # ^^ WARNING: if you delete confess ^^ you have minus there
+        }
     }
 
-
-    return $self;
-}
-
-sub parse_fh(
-    $self,
-    $fh,
-    @filter
-) {
-    confess __PACKAGE__, '->parser(): ',
-            'type is ', lc ref $fh, ' ',
-            'but should be fh: ',
-            'fh => [->here<-, ...]'
-        unless ref $fh eq 'GLOB';
-
-    # read fh then pass to parse_output
-    $self->parse_output(
-        join("", <$fh>),
-        @filter
-    );
-
-    return $self;
-}
-
-sub parse_pacman(
-    $self,
-    $pacman_opts,
-    @filter
-) {
-    $self->parse_output(
-        $self->capture_cmd('pacman', $pacman_opts->@*),
-        @filter
-    );
-
-    return $self;
-}
-
-sub parse_output(
-    $self,
-    $output,
-    $filter_name = "columns",
-    $filter_opts = {}
-) {
-    $self->filter_pacman($output, $filter_name, $filter_opts);
-
-    return $self;
-}
-
-sub parse_packages(
-    $self,
-    %packages
-) {
-    $self->{'parsed'}->@{keys %packages} = values %packages;
-    return $self;
-}
-
-#-------------------------------------------------------------------------------
-# get_* // get_something == ->('something')
-#-------------------------------------------------------------------------------
-
-sub get_count($self) {
-    return scalar keys $self->{'parsed'}->%*;
-}
-
-sub get_keys($self) {
-    return keys $self->{'parsed'}->%*
-}
-
-sub get_sorted_keys($self) {
-    return sort keys $self->{'parsed'}->%*
-}
-
-sub get_hash_copy($self) {
-    return {$self->{'parsed'}->%*}
-}
-
-sub get_hash($self) {
-    return \$self->{'parsed'}->%*
+    return $self
 }
 
 1;
-
-
 __END__
 
 =head1 NAME

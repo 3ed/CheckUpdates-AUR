@@ -1,6 +1,6 @@
 =head1 NAME
 
-OS::CheckUpdates::AUR::GetOpts::misc - GetOpts plugin
+OS::CheckUpdates::AUR::ParseArgs::parserPackages - parse -> packages
 
 =head1 VERSION
 
@@ -8,68 +8,39 @@ Version 0.06
 
 =head1 SYNOPSIS
 
- misc options plugin for GetOpts (--orphans)
+ autoloaded by ParseArgs
+
+=head1 USAGE
+
+ my $sub = parent->parse('packages' => [...])
 
 =cut
 
-package OS::CheckUpdates::AUR::GetOpts::misc;
+package OS::CheckUpdates::AUR::ParseArgs::parserPackages;
 use 5.022;
-use feature qw(signatures postderef);
-no warnings qw(experimental::signatures experimental::postderef);
+use feature    qw(signatures postderef);
+no  warnings   qw(experimental::signatures experimental::postderef);
+
 
 =head1 SUBROUTINES/METHODS
 
-=head2 register_misc()
+=head2 parse_packages
 
- registering arguments in getopts
-
-=cut
-
-sub register_misc ($self) {
-    return (
-        'orphans|o'
-    );
-}
-
-=head2 parse_misc()
-
- parse parameters getted from arguments that been used by user
+ packages => [ name1 => ver1, name2 => ver2, ... ]
 
 =cut
 
-sub parse_misc ($self) {
-    return $self->{'opts'}->%{qw(
-        orphans
-    )}
-}
-
-=head2 usage_usage_misc()
-
- help USAGE section (NOT IMPLEMENTED)
-
-=cut
-
-sub help_usage_misc ($self) {
-	return '[-o]';
-}
-
-sub help_options_misc ($self) {
-	return <<EOF
-    -o, --orphans
-        Show packages that can't be found
-        on AUR.
-EOF
+sub parse_packages(
+    $self,
+    %packages
+) {
+    $self->{'parsed'}->@{keys %packages} = values %packages;
+    return $self;
 }
 
 1;
 
-
-=head1 AUTHOR
-
-3ED, C<< <krzysztof1987 at gmail.com> >>
-
-
-
+__END__
 =head1 BUGS
 
 Please report any bugs or feature requests to C<bug-checkupdates-aur at rt.cpan.org>, or through
